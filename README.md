@@ -74,5 +74,4 @@ The solid edges are implemented: consumers call the API, which serves in-memory 
 
 ## Documentation
 
-- [Foundation design](docs/superpowers/specs/2026-09-19-foundation-design.md)
-- [Foundation implementation plan](docs/superpowers/plans/2026-09-19-foundation-implementation.md)
+The delivered scope, endpoints, verification commands, and architecture are documented in this README. Design and implementation records for this delivery are maintained outside the tracked repository and are intentionally not committed.
