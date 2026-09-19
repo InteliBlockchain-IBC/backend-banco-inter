@@ -17,7 +17,17 @@ const readyResponse = {
   type: "object",
 } as const;
 
-export async function registerHealthRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/health", { schema: { response: { 200: healthResponse }, tags: ["health"] } }, async () => ({ status: "ok" }));
-  app.get("/ready", { schema: { response: { 200: readyResponse }, tags: ["health"] } }, async () => ({ dependencies: [], status: "ready" }));
+export async function registerHealthRoutes(
+  app: FastifyInstance,
+): Promise<void> {
+  app.get(
+    "/health",
+    { schema: { response: { 200: healthResponse }, tags: ["health"] } },
+    async () => ({ status: "ok" }),
+  );
+  app.get(
+    "/ready",
+    { schema: { response: { 200: readyResponse }, tags: ["health"] } },
+    async () => ({ dependencies: [], status: "ready" }),
+  );
 }

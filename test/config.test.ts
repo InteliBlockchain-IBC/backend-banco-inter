@@ -11,7 +11,10 @@ test("uses safe configuration defaults", () => {
 });
 
 test("rejects a non-numeric port", () => {
-  assert.throws(() => loadConfig({ PORT: "three-thousand" }), ConfigurationError);
+  assert.throws(
+    () => loadConfig({ PORT: "three-thousand" }),
+    ConfigurationError,
+  );
 });
 
 test("rejects an unsupported environment", () => {

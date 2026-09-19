@@ -16,7 +16,9 @@ export class ConfigurationError extends Error {
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const nodeEnv = env.NODE_ENV ?? "development";
   if (!nodeEnvironments.has(nodeEnv)) {
-    throw new ConfigurationError("NODE_ENV must be development, production, or test.");
+    throw new ConfigurationError(
+      "NODE_ENV must be development, production, or test.",
+    );
   }
 
   const portText = env.PORT ?? "3000";
@@ -30,5 +32,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new ConfigurationError("HOST must not be empty.");
   }
 
-  return Object.freeze({ host, nodeEnv: nodeEnv as AppConfig["nodeEnv"], port });
+  return Object.freeze({
+    host,
+    nodeEnv: nodeEnv as AppConfig["nodeEnv"],
+    port,
+  });
 }

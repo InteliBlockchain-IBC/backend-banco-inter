@@ -12,7 +12,15 @@ test("generated OpenAPI is valid and documents all executable API routes", async
   await SwaggerParser.validate(document);
 
   assert.equal(document.info.version, "0.1.0");
-  for (const path of ["/health", "/ready", "/api/offers", "/api/offers/{id}", "/api/operations", "/api/operations/{txHash}", "/api/credit-limits"]) {
+  for (const path of [
+    "/health",
+    "/ready",
+    "/api/offers",
+    "/api/offers/{id}",
+    "/api/operations",
+    "/api/operations/{txHash}",
+    "/api/credit-limits",
+  ]) {
     assert.ok(document.paths?.[path]);
   }
 });

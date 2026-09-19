@@ -13,7 +13,10 @@
     "test": "npm run build && node --test dist/test/*.test.js",
     "coverage": "npm run build && node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=75 dist/test/*.test.js",
     "openapi:validate": "npm run build && node --test dist/test/openapi.test.js",
-    "start": "node dist/src/server.js"
+    "start": "node dist/src/server.js",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint ."
   },
   "dependencies": {
     "@fastify/swagger": "^9.8.1",
@@ -22,6 +25,7 @@
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^13.0.0",
+    "@biomejs/biome": "^2.5.14",
     "@types/node": "^24.13.6",
     "typescript": "^7.0.2"
   }

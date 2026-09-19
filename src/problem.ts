@@ -19,6 +19,12 @@ export const problemSchema = {
   type: "object",
 } as const;
 
-export function createProblem(correlationId: string, status: number, title: string, detail: string, type: string): Problem {
+export function createProblem(
+  correlationId: string,
+  status: number,
+  title: string,
+  detail: string,
+  type: string,
+): Problem {
   return { correlationId, detail, status, title, type };
 }
