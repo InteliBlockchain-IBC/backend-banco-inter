@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "../src/app.js";
+import { MOCK_TRANSACTION_HASH } from "../src/routes/mock-read.js";
 
 test("health reports a live process", async (t) => {
   const app = await buildApp({ logger: false });
@@ -22,8 +23,6 @@ test("readiness lists no unconfigured dependencies", async (t) => {
   assert.deepEqual(response.json(), { dependencies: [], status: "ready" });
 });
 
-const mockHash = `0x${"0".repeat(63)}1`;
-
 test("mock offers are labelled in headers and bodies", async (t) => {
   const app = await buildApp({ logger: false });
   t.after(() => app.close());
@@ -33,6 +32,41 @@ test("mock offers are labelled in headers and bodies", async (t) => {
   assert.equal(response.statusCode, 200);
   assert.equal(response.headers["x-data-source"], "mock");
   assert.equal(response.json().meta.source, "mock");
+});
+
+test("every mock list route is labelled in headers and bodies", async (t) => {
+  const app = await buildApp({ logger: false });
+  t.after(() => app.close());
+
+  for (const url of ["/api/operations", "/api/credit-limits"]) {
+    const response = await app.inject({ method: "GET", url });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers["x-data-source"], "mock");
+    assert.equal(response.json().meta.source, "mock");
+  }
+});
+
+test("error responses on mock routes carry no mock marker", async (t) => {
+  const app = await buildApp({ logger: false });
+  t.after(() => app.close());
+
+  const missingOffer = await app.inject({
+    method: "GET",
+    url: "/api/offers/no-such-offer",
+  });
+  const unknownQueryField = await app.inject({
+    method: "GET",
+    url: "/api/offers?unexpected=true",
+  });
+
+  assert.equal(missingOffer.statusCode, 404);
+  assert.equal(unknownQueryField.statusCode, 400);
+
+  for (const response of [missingOffer, unknownQueryField]) {
+    assert.equal(response.headers["x-data-source"], undefined);
+    assert.equal(response.json().meta, undefined);
+  }
 });
 
 test("a missing mock offer uses Problem Details", async (t) => {
@@ -75,7 +109,7 @@ test("mock operation details accept only an Ethereum-shaped hash", async (t) => 
 
   const valid = await app.inject({
     method: "GET",
-    url: `/api/operations/${mockHash}`,
+    url: `/api/operations/${MOCK_TRANSACTION_HASH}`,
   });
   const invalid = await app.inject({
     method: "GET",

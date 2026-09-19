@@ -27,9 +27,9 @@ npm run build
 npm run start
 ```
 
-`npm run start` runs the compiled server from `dist/` on `HOST` and `PORT`, so run `npm run build` first. Stop it with `Ctrl+C`.
+`npm run start` runs the compiled server from `dist/` on `HOST` and `PORT`, so run `npm run build` first. Stop it with `Ctrl+C`. To use the values from [`.env.example`](.env.example), copy it to `.env` and load it explicitly: `node --env-file=.env dist/src/server.js`.
 
-These are the same checks that run in CI, split across two jobs in [`.github/workflows/ci.yml`](.github/workflows/ci.yml): a `quality` job runs `format:check`, `lint`, `typecheck`, and `build`, and a `test` job runs `coverage`, `openapi:validate`, and `npm audit --omit=dev --audit-level=high`. Both jobs install with `npm ci` on the `.nvmrc` runtime.
+The checks CI runs are split across two jobs in [`.github/workflows/ci.yml`](.github/workflows/ci.yml): a `quality` job runs `format:check`, `lint`, `typecheck`, and `build`, and a `test` job runs `coverage`, `openapi:validate`, and `npm audit --omit=dev --audit-level=high`. Both jobs install with `npm ci` on the `.nvmrc` runtime.
 
 ## Endpoints
 
@@ -43,7 +43,7 @@ These are the same checks that run in CI, split across two jobs in [`.github/wor
 | GET    | `/api/operations/:txHash` | Mock operation detail.                                   |
 | GET    | `/api/credit-limits`      | Mock credit-limit collection.                            |
 | GET    | `/openapi.json`           | The served OpenAPI `0.1.0` document.                     |
-| GET    | `/docs`                   | Interactive documentation UI rendered from that contract. |
+| GET    | `/docs`                   | Interactive documentation UI rendered from the contract. |
 
 `GET /docs` is served as a UI plugin rather than a schema route, so it does **not** appear in `document.paths` of `/openapi.json`. It is available and working; the OpenAPI document does not enumerate it.
 
