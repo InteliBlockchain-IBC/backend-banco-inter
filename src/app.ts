@@ -1,8 +1,54 @@
-import Fastify, { type FastifyInstance } from "fastify";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
+import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
+import { createProblem } from "./problem.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerMockReadRoutes } from "./routes/mock-read.js";
 
 export async function buildApp(options: { logger?: boolean } = {}): Promise<FastifyInstance> {
-  const app = Fastify({ logger: options.logger ?? true });
+  const app = Fastify({
+    ajv: { customOptions: { removeAdditional: false } },
+    bodyLimit: 16 * 1024,
+    logger: options.logger ?? true,
+  });
+
+  app.setErrorHandler((error: FastifyError, request, reply) => {
+    const validationError = "validation" in error && error.validation !== undefined;
+    const status = validationError ? 400 : 500;
+    return reply.code(status).type("application/problem+json").send(
+      createProblem(
+        request.id,
+        status,
+        validationError ? "Invalid request" : "Internal server error",
+        validationError ? "Request validation failed." : "The server could not process the request.",
+        `https://api.example.invalid/problems/${validationError ? "validation-error" : "internal-error"}`,
+      ),
+    );
+  });
+
+  app.setNotFoundHandler((request, reply) =>
+    reply.code(404).type("application/problem+json").send(
+      createProblem(
+        request.id,
+        404,
+        "Resource not found",
+        "The requested resource does not exist.",
+        "https://api.example.invalid/problems/not-found",
+      ),
+    ),
+  );
+
+  await app.register(swagger, {
+    openapi: { info: { title: "Banco Inter Backend API", version: "0.1.0" }, openapi: "3.0.3" },
+  });
+  await app.register(swaggerUi, { routePrefix: "/docs" });
   await app.register(registerHealthRoutes);
+  await app.register(registerMockReadRoutes);
+  app.get(
+    "/openapi.json",
+    { schema: { response: { 200: { additionalProperties: true, type: "object" } }, tags: ["documentation"] } },
+    async () => app.swagger(),
+  );
+
   return app;
 }
