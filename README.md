@@ -11,7 +11,7 @@ This repository is the tracked Week-1 delivery evidence. The executable service,
 
 Install the pinned runtime with any Node version manager (for example `nvm use` or `mise use node@24`) before installing dependencies.
 
-**Known local versus CI runtime skew:** the local verification recorded for this delivery ran on Node `26.8.2`, while `.nvmrc` pins `24` and `engines` requires `>=24 <25`. Local installs therefore emit `EBADENGINE` warnings, and Node 24 behavior has **not** been verified locally. CI installs the `.nvmrc` runtime and is what provides Node 24 verification.
+**Known local versus CI runtime skew:** the local verification recorded for this delivery ran on Node `26.8.2`, while `.nvmrc` pins `24` and `engines` requires `>=24 <25`. Local installs therefore emit `EBADENGINE` warnings, and Node 24 behavior has **not** been verified locally. CI installs the `.nvmrc` runtime and is what **will** provide Node 24 verification; CI has not yet run for this delivery.
 
 ## Installation and verification
 
@@ -29,6 +29,8 @@ npm run start
 
 `npm run start` runs the compiled server from `dist/` on `HOST` and `PORT`, so run `npm run build` first. Stop it with `Ctrl+C`.
 
+These are the same checks that run in CI, split across two jobs in [`.github/workflows/ci.yml`](.github/workflows/ci.yml): a `quality` job runs `format:check`, `lint`, `typecheck`, and `build`, and a `test` job runs `coverage`, `openapi:validate`, and `npm audit --omit=dev --audit-level=high`. Both jobs install with `npm ci` on the `.nvmrc` runtime.
+
 ## Endpoints
 
 | Method | Path                      | Description                                              |
@@ -45,11 +47,11 @@ npm run start
 
 `GET /docs` is served as a UI plugin rather than a schema route, so it does **not** appear in `document.paths` of `/openapi.json`. It is available and working; the OpenAPI document does not enumerate it.
 
-Unknown resources return `application/problem+json` 404 responses. Invalid parameters, malformed input, and unexpected errors use the same Problem Details format with `type`, `title`, `status`, a safe `detail`, and a `correlationId`. No stack trace, payload, SQL, RPC URL, or environment value is included.
+Unknown resources return `application/problem+json` 404 responses. Invalid parameters, malformed input, and unexpected errors use the same Problem Details format with `type`, `title`, `status`, a safe `detail`, and a `correlationId`. No stack trace, payload, SQL, RPC URL, or environment value is included. Error responses are Problem Details and do **not** carry the mock marker described below.
 
 ## Mock identification
 
-Every `/api/*` result in this version carries `x-data-source: mock` in the response headers and `meta.source: "mock"` in the response body. The data is fictitious. It is **not** persisted and **not** on-chain data — it comes from an in-memory fixture. No operation has been submitted to a chain.
+Every successful `/api/*` data response in this version carries `x-data-source: mock` in the response headers and `meta.source: "mock"` in the response body. The data is fictitious. It is **not** persisted and **not** on-chain data — it comes from an in-memory fixture. No operation has been submitted to a chain. This marking applies to successful data responses only; error responses are Problem Details and carry neither marker.
 
 ## Architecture
 
