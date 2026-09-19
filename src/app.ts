@@ -13,15 +13,22 @@ export async function buildApp(options: { logger?: boolean } = {}): Promise<Fast
   });
 
   app.setErrorHandler((error: FastifyError, request, reply) => {
+    request.log.error({ err: error }, "request failed");
+
     const validationError = "validation" in error && error.validation !== undefined;
-    const status = validationError ? 400 : 500;
+    const clientStatus =
+      typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode < 500
+        ? error.statusCode
+        : undefined;
+    const status = validationError ? 400 : (clientStatus ?? 500);
+    const clientError = status < 500;
     return reply.code(status).type("application/problem+json").send(
       createProblem(
         request.id,
         status,
-        validationError ? "Invalid request" : "Internal server error",
-        validationError ? "Request validation failed." : "The server could not process the request.",
-        `https://api.example.invalid/problems/${validationError ? "validation-error" : "internal-error"}`,
+        clientError ? "Invalid request" : "Internal server error",
+        clientError ? "Request validation failed." : "The server could not process the request.",
+        `https://api.example.invalid/problems/${clientError ? "validation-error" : "internal-error"}`,
       ),
     );
   });

@@ -68,3 +68,41 @@ test("mock operation details accept only an Ethereum-shaped hash", async (t) => 
   assert.equal(valid.json().meta.source, "mock");
   assert.equal(invalid.statusCode, 400);
 });
+
+test("a malformed body reports a truthful client error, not a server fault", async (t) => {
+  const app = await buildApp({ logger: false });
+  t.after(() => app.close());
+
+  const response = await app.inject({
+    headers: { "content-type": "application/json" },
+    method: "POST",
+    payload: "{ not json",
+    url: "/api/offers",
+  });
+
+  assert.equal(response.statusCode, 400);
+  assert.match(response.headers["content-type"] ?? "", /^application\/problem\+json/);
+  assert.equal(response.json().status, 400);
+  assert.equal(response.json().type, "https://api.example.invalid/problems/validation-error");
+  assert.equal(typeof response.json().correlationId, "string");
+  assert.doesNotMatch(response.body, /FST_ERR|Unexpected token|SyntaxError/);
+});
+
+test("the served OpenAPI document keeps the contract version", async (t) => {
+  const app = await buildApp({ logger: false });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "GET", url: "/openapi.json" });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().info.version, "0.1.0");
+});
+
+test("the human-readable documentation is served", async (t) => {
+  const app = await buildApp({ logger: false });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "GET", url: "/docs" });
+
+  assert.equal(response.statusCode, 200);
+});
