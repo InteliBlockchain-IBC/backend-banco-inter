@@ -1,19 +1,19 @@
 # backend-banco-inter
 
-Read-only Fastify service for the Banco Inter blockchain PoC. It is an academic and experimental proof of concept: every result is a clearly labelled mock, using fictitious data and simulated assets on Sepolia only.
+Serviço Fastify somente leitura para a PoC de blockchain do Banco Inter. É uma prova de conceito acadêmica e experimental: toda resposta é um mock declarado, com dados fictícios e ativos simulados, apenas na Sepolia.
 
-This repository is the tracked Week-1 delivery evidence. The executable service, its served OpenAPI `0.1.0` contract, and the documents linked below describe the same boundary.
+Este repositório é a evidência rastreada da Semana 1. O serviço executável, o contrato OpenAPI `0.1.0` que ele serve e o diagrama de arquitetura abaixo descrevem o mesmo escopo.
 
-## Supported runtime
+## Runtime suportado
 
-- Node.js 24 LTS, pinned by [`.nvmrc`](.nvmrc) to `24` and enforced by the `engines` field (`>=24 <25`).
-- npm with the committed `package-lock.json`.
+- Node.js 24 LTS, fixado em [`.nvmrc`](.nvmrc) e exigido pelo campo `engines` (`>=24 <25`).
+- npm, com `package-lock.json` versionado.
 
-Install the pinned runtime with any Node version manager (for example `nvm use` or `mise use node@24`) before installing dependencies.
+Instale o runtime fixado com qualquer gerenciador de versões (`nvm use` ou `mise use node@24`) antes de instalar as dependências.
 
-**Known local versus CI runtime skew:** the local verification recorded for this delivery ran on Node `26.8.2`, while `.nvmrc` pins `24` and `engines` requires `>=24 <25`. Local installs therefore emit `EBADENGINE` warnings, and Node 24 behavior has **not** been verified locally. CI installs the `.nvmrc` runtime and is what **will** provide Node 24 verification; CI has not yet run for this delivery.
+A verificação local desta entrega rodou em Node `26.8.2`, não em Node 24. Como `.nvmrc` fixa `24` e `engines` exige `>=24 <25`, instalações locais emitem avisos `EBADENGINE`, e o comportamento em Node 24 não foi observado aqui. Quem cobre esse runtime é o CI, que instala a versão do `.nvmrc`. O CI ainda não rodou para esta entrega.
 
-## Installation and verification
+## Instalação e verificação
 
 ```bash
 npm ci
@@ -27,51 +27,47 @@ npm run build
 npm run start
 ```
 
-`npm run start` runs the compiled server from `dist/` on `HOST` and `PORT`, so run `npm run build` first. Stop it with `Ctrl+C`. To use the values from [`.env.example`](.env.example), copy it to `.env` and load it explicitly: `node --env-file=.env dist/src/server.js`.
+`npm run start` sobe o servidor compilado de `dist/` usando `HOST` e `PORT`, então rode `npm run build` antes. Encerre com `Ctrl+C`. Para carregar os valores de [`.env.example`](.env.example), copie o arquivo para `.env` e aponte explicitamente: `node --env-file=.env dist/src/server.js`.
 
-The checks CI runs are split across two jobs in [`.github/workflows/ci.yml`](.github/workflows/ci.yml): a `quality` job runs `format:check`, `lint`, `typecheck`, and `build`, and a `test` job runs `coverage`, `openapi:validate`, and `npm audit --omit=dev --audit-level=high`. Both jobs install with `npm ci` on the `.nvmrc` runtime.
+O CI divide essas verificações em dois jobs, definidos em [`.github/workflows/ci.yml`](.github/workflows/ci.yml). O job `quality` roda `format:check`, `lint`, `typecheck` e `build`. O job `test` roda `coverage`, `openapi:validate` e `npm audit --omit=dev --audit-level=high`. Os dois instalam com `npm ci` no runtime do `.nvmrc`.
 
 ## Endpoints
 
-| Method | Path                      | Description                                              |
-| ------ | ------------------------- | -------------------------------------------------------- |
-| GET    | `/health`                 | Liveness only; returns `{ "status": "ok" }`.             |
-| GET    | `/ready`                  | Readiness; lists dependencies, which are currently none. |
-| GET    | `/api/offers`             | Mock offer collection.                                   |
-| GET    | `/api/offers/:id`         | Mock offer detail.                                       |
-| GET    | `/api/operations`         | Mock operation collection.                               |
-| GET    | `/api/operations/:txHash` | Mock operation detail.                                   |
-| GET    | `/api/credit-limits`      | Mock credit-limit collection.                            |
-| GET    | `/openapi.json`           | The served OpenAPI `0.1.0` document.                     |
-| GET    | `/docs`                   | Interactive documentation UI rendered from the contract. |
+| Método | Caminho                   | Descrição                                                   |
+| ------ | ------------------------- | ----------------------------------------------------------- |
+| GET    | `/health`                 | Liveness. Devolve `{ "status": "ok" }`.                     |
+| GET    | `/ready`                  | Readiness. Lista dependências, hoje nenhuma.                |
+| GET    | `/api/offers`             | Coleção de ofertas mockadas.                                |
+| GET    | `/api/offers/:id`         | Detalhe de uma oferta mockada.                              |
+| GET    | `/api/operations`         | Coleção de operações mockadas.                              |
+| GET    | `/api/operations/:txHash` | Detalhe de uma operação mockada.                            |
+| GET    | `/api/credit-limits`      | Coleção de limites de crédito mockados.                     |
+| GET    | `/openapi.json`           | O documento OpenAPI `0.1.0` servido pela aplicação.         |
+| GET    | `/docs`                   | Interface de documentação renderizada a partir do contrato. |
 
-`GET /docs` is served as a UI plugin rather than a schema route, so it does **not** appear in `document.paths` of `/openapi.json`. It is available and working; the OpenAPI document does not enumerate it.
+`GET /docs` é registrado como plugin de UI, não como rota com schema. Por isso ele não aparece em `document.paths` do `/openapi.json`. A rota funciona; o documento apenas não a enumera.
 
-Unknown resources return `application/problem+json` 404 responses. Invalid parameters, malformed input, and unexpected errors use the same Problem Details format with `type`, `title`, `status`, a safe `detail`, and a `correlationId`. No stack trace, payload, SQL, RPC URL, or environment value is included. Error responses are Problem Details and do **not** carry the mock marker described below.
+Recursos inexistentes devolvem 404 em `application/problem+json`. Parâmetros inválidos, entrada malformada e erros inesperados usam o mesmo formato, com `type`, `title`, `status`, `detail` seguro e `correlationId`. Nenhuma resposta carrega stack trace, payload, SQL, URL de RPC ou valor de ambiente.
 
-## Mock identification
+## Identificação dos mocks
 
-Every successful `/api/*` data response in this version carries `x-data-source: mock` in the response headers and `meta.source: "mock"` in the response body. The data is fictitious. It is **not** persisted and **not** on-chain data — it comes from an in-memory fixture. No operation has been submitted to a chain. This marking applies to successful data responses only; error responses are Problem Details and carry neither marker.
+Toda resposta de dados bem-sucedida em `/api/*` traz `x-data-source: mock` no cabeçalho e `meta.source: "mock"` no corpo. Os dados são fictícios, vêm de um fixture em memória e não foram persistidos nem submetidos a nenhuma chain. Respostas de erro não levam esses marcadores: elas são Problem Details.
 
-## Architecture
+## Arquitetura
 
 ```mermaid
 flowchart LR
-    Consumer[HTTP consumer] --> API[Fastify API]
-    API --> Mock[In-memory fictitious fixtures]
-    API -. planned projection .-> Database[(PostgreSQL)]
-    API -. planned read-only integration .-> RPC[Sepolia RPC]
-    RPC -. planned events .-> Contract[Smart contract]
+    Consumidor[Consumidor HTTP] --> API[API Fastify]
+    API --> Mock[Fixtures fictícios em memória]
+    API -. projeção planejada .-> Database[(PostgreSQL)]
+    API -. integração somente leitura planejada .-> RPC[RPC Sepolia]
+    RPC -. eventos planejados .-> Contract[Contrato inteligente]
 ```
 
-The solid edges are implemented: consumers call the API, which serves in-memory fictitious fixtures. The dashed edges are **planned, not implemented**. There is no PostgreSQL connection, no `pg` driver, no viem dependency, and no RPC or contract ABI configuration in this version. Those integrations arrive only when a concrete requirement defines their semantics.
+As arestas sólidas existem hoje: o consumidor chama a API, que serve fixtures fictícios em memória. As tracejadas são planejadas e não estão implementadas. Não há conexão PostgreSQL, driver `pg`, dependência viem nem configuração de RPC ou de ABI de contrato nesta versão. Cada integração entra quando houver requisito concreto que defina sua semântica.
 
-## Scope boundaries
+## Limites de escopo
 
-- Mock reads only. There is no financial command route, no authentication, no queue, cache, or worker.
-- The service holds no participant key and signs no transaction.
-- No secret is committed. [`.env.example`](.env.example) contains only safe values (`NODE_ENV`, `HOST`, `PORT`); configuration is validated at startup.
-
-## Documentation
-
-The delivered scope, endpoints, verification commands, and architecture are documented in this README. Design and implementation records for this delivery are maintained outside the tracked repository and are intentionally not committed.
+- Somente leitura mockada. Não existe rota de comando financeiro, autenticação, fila, cache ou worker.
+- O serviço não guarda chave de participante nem assina transação.
+- Nenhum segredo é versionado. [`.env.example`](.env.example) traz apenas valores seguros (`NODE_ENV`, `HOST`, `PORT`), e a configuração é validada na inicialização.
