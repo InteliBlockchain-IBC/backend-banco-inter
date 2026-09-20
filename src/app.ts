@@ -15,7 +15,7 @@ export async function buildApp(
   });
 
   app.setErrorHandler((error: FastifyError, request, reply) => {
-    request.log.error({ err: error }, "request failed");
+    request.log.error({ err: error }, "falha na requisição");
 
     const validationError =
       "validation" in error && error.validation !== undefined;
@@ -34,10 +34,10 @@ export async function buildApp(
         createProblem(
           request.id,
           status,
-          clientError ? "Invalid request" : "Internal server error",
+          clientError ? "Requisição inválida" : "Erro interno do servidor",
           clientError
-            ? "Request validation failed."
-            : "The server could not process the request.",
+            ? "A validação da requisição falhou."
+            : "O servidor não conseguiu processar a requisição.",
           `https://api.example.invalid/problems/${clientError ? "validation-error" : "internal-error"}`,
         ),
       );
@@ -51,8 +51,8 @@ export async function buildApp(
         createProblem(
           request.id,
           404,
-          "Resource not found",
-          "The requested resource does not exist.",
+          "Recurso não encontrado",
+          "O recurso solicitado não existe.",
           "https://api.example.invalid/problems/not-found",
         ),
       ),
@@ -60,7 +60,7 @@ export async function buildApp(
 
   await app.register(swagger, {
     openapi: {
-      info: { title: "Banco Inter Backend API", version: "0.1.0" },
+      info: { title: "API do Backend Banco Inter", version: "0.1.0" },
       openapi: "3.0.3",
     },
   });
@@ -72,7 +72,7 @@ export async function buildApp(
     {
       schema: {
         response: { 200: { additionalProperties: true, type: "object" } },
-        tags: ["documentation"],
+        tags: ["documentação"],
       },
     },
     async () => app.swagger(),

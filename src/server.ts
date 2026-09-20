@@ -5,7 +5,7 @@ const config = loadConfig();
 const app = await buildApp();
 
 const close = async (signal: string): Promise<void> => {
-  app.log.info({ signal }, "shutting down");
+  app.log.info({ signal }, "encerrando");
   await app.close();
   process.exit(0);
 };

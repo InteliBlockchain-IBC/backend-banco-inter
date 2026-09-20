@@ -5,13 +5,13 @@ export const MOCK_TRANSACTION_HASH = `0x${"0".repeat(63)}1`;
 
 const meta = { source: "mock" } as const;
 const offers = [
-  { id: "mock-offer-001", label: "Fictitious offer 001" },
+  { id: "mock-offer-001", label: "Oferta fictícia 001" },
 ] as const;
 const operations = [
-  { label: "Fictitious operation 001", txHash: MOCK_TRANSACTION_HASH },
+  { label: "Operação fictícia 001", txHash: MOCK_TRANSACTION_HASH },
 ] as const;
 const creditLimits = [
-  { institutionId: "mock-institution-001", label: "Fictitious institution" },
+  { institutionId: "mock-institution-001", label: "Instituição fictícia" },
 ] as const;
 
 const closedQuerySchema = {
@@ -91,8 +91,8 @@ function notFound(reply: FastifyReply, requestId: string) {
       createProblem(
         requestId,
         404,
-        "Resource not found",
-        "The requested mock resource does not exist.",
+        "Recurso não encontrado",
+        "O recurso mock solicitado não existe.",
         "https://api.example.invalid/problems/not-found",
       ),
     );
@@ -107,7 +107,7 @@ export async function registerMockReadRoutes(
       schema: {
         querystring: closedQuerySchema,
         response: { 200: offerListResponse, 400: problemSchema },
-        tags: ["mock reads"],
+        tags: ["mocks"],
       },
     },
     async (_request, reply) => sendMock(reply, offers),
@@ -122,7 +122,7 @@ export async function registerMockReadRoutes(
           400: problemSchema,
           404: problemSchema,
         },
-        tags: ["mock reads"],
+        tags: ["mocks"],
       },
     },
     async (request, reply) => {
@@ -136,7 +136,7 @@ export async function registerMockReadRoutes(
       schema: {
         querystring: closedQuerySchema,
         response: { 200: operationListResponse, 400: problemSchema },
-        tags: ["mock reads"],
+        tags: ["mocks"],
       },
     },
     async (_request, reply) => sendMock(reply, operations),
@@ -151,7 +151,7 @@ export async function registerMockReadRoutes(
           400: problemSchema,
           404: problemSchema,
         },
-        tags: ["mock reads"],
+        tags: ["mocks"],
       },
     },
     async (request, reply) => {
@@ -169,7 +169,7 @@ export async function registerMockReadRoutes(
       schema: {
         querystring: closedQuerySchema,
         response: { 200: creditLimitListResponse, 400: problemSchema },
-        tags: ["mock reads"],
+        tags: ["mocks"],
       },
     },
     async (_request, reply) => sendMock(reply, creditLimits),

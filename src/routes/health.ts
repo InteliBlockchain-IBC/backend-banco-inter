@@ -22,12 +22,12 @@ export async function registerHealthRoutes(
 ): Promise<void> {
   app.get(
     "/health",
-    { schema: { response: { 200: healthResponse }, tags: ["health"] } },
+    { schema: { response: { 200: healthResponse }, tags: ["saúde"] } },
     async () => ({ status: "ok" }),
   );
   app.get(
     "/ready",
-    { schema: { response: { 200: readyResponse }, tags: ["health"] } },
+    { schema: { response: { 200: readyResponse }, tags: ["saúde"] } },
     async () => ({ dependencies: [], status: "ready" }),
   );
 }
