@@ -106,7 +106,11 @@ export async function registerMockReadRoutes(
     {
       schema: {
         querystring: closedQuerySchema,
-        response: { 200: offerListResponse, 400: problemSchema },
+        response: {
+          200: offerListResponse,
+          400: problemSchema,
+          500: problemSchema,
+        },
         tags: ["mocks"],
       },
     },
@@ -121,6 +125,7 @@ export async function registerMockReadRoutes(
           200: offerResponse,
           400: problemSchema,
           404: problemSchema,
+          500: problemSchema,
         },
         tags: ["mocks"],
       },
@@ -135,7 +140,11 @@ export async function registerMockReadRoutes(
     {
       schema: {
         querystring: closedQuerySchema,
-        response: { 200: operationListResponse, 400: problemSchema },
+        response: {
+          200: operationListResponse,
+          400: problemSchema,
+          500: problemSchema,
+        },
         tags: ["mocks"],
       },
     },
@@ -150,6 +159,7 @@ export async function registerMockReadRoutes(
           200: operationResponse,
           400: problemSchema,
           404: problemSchema,
+          500: problemSchema,
         },
         tags: ["mocks"],
       },
@@ -168,7 +178,11 @@ export async function registerMockReadRoutes(
     {
       schema: {
         querystring: closedQuerySchema,
-        response: { 200: creditLimitListResponse, 400: problemSchema },
+        response: {
+          200: creditLimitListResponse,
+          400: problemSchema,
+          500: problemSchema,
+        },
         tags: ["mocks"],
       },
     },
