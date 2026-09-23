@@ -257,3 +257,27 @@ test("an internal fault answers with the declared 500 envelope", async (t) => {
     /falha interna injetada pelo teste|stack|node_modules/,
   );
 });
+
+test("detail routes reject an unknown query field instead of ignoring it", async (t) => {
+  const app = await buildApp({ logger: false });
+  t.after(() => app.close());
+
+  // Um parâmetro escrito errado tem de doer: ignorado, ele vira bug silencioso.
+  for (const url of [
+    "/api/offers/mock-offer-001",
+    `/api/operations/${MOCK_TRANSACTION_HASH}`,
+  ]) {
+    const accepted = await app.inject({ method: "GET", url });
+    const rejected = await app.inject({
+      method: "GET",
+      url: `${url}?fulter=x`,
+    });
+
+    assert.equal(accepted.statusCode, 200);
+    assert.equal(rejected.statusCode, 400);
+    assert.equal(
+      rejected.json().type,
+      "https://api.example.invalid/problems/validation-error",
+    );
+  }
+});

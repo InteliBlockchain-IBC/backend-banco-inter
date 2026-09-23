@@ -121,6 +121,7 @@ export async function registerMockReadRoutes(
     {
       schema: {
         params: offerParamsSchema,
+        querystring: closedQuerySchema,
         response: {
           200: offerResponse,
           400: problemSchema,
@@ -155,6 +156,7 @@ export async function registerMockReadRoutes(
     {
       schema: {
         params: transactionParamsSchema,
+        querystring: closedQuerySchema,
         response: {
           200: operationResponse,
           400: problemSchema,
