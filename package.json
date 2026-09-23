@@ -7,12 +7,25 @@
     "node": ">=24 <25",
     "npm": ">=11 <12"
   },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=24 <25",
+      "onFail": "warn"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": ">=11 <12",
+      "onFail": "warn"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test dist/test/*.test.js",
-    "coverage": "npm run build && node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=75 dist/test/*.test.js",
+    "coverage": "npm run build && node --test --experimental-test-coverage --test-coverage-include='dist/src/**/*.js' --test-coverage-lines=80 --test-coverage-branches=75 --test-coverage-functions=75 dist/test/*.test.js",
     "openapi:validate": "npm run build && node --test dist/test/openapi.test.js",
+    "coverage:lcov": "npm run build && node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=dist/lcov.info dist/test/*.test.js",
     "start": "node dist/src/server.js",
     "format": "biome format --write .",
     "format:check": "biome format .",
