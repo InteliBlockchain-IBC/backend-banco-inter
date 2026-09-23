@@ -164,3 +164,96 @@ test("the human-readable documentation is served", async (t) => {
 
   assert.equal(response.statusCode, 200);
 });
+
+test("a malformed URL is answered with Problem Details", async (t) => {
+  const app = await buildApp({ logger: true });
+  t.after(() => app.close());
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/api/offers/%ZZ",
+  });
+
+  assert.equal(response.statusCode, 400);
+  assert.match(
+    response.headers["content-type"] ?? "",
+    /^application\/problem\+json/,
+  );
+  assert.equal(typeof response.json().correlationId, "string");
+  assert.doesNotMatch(response.body, /FST_ERR_BAD_URL/);
+});
+
+test("every response carries the security headers", async (t) => {
+  const app = await buildApp({ logger: false });
+  t.after(() => app.close());
+
+  // A URL malformada passa pelo `frameworkErrors`, que não aciona o hook `onSend`:
+  // era o único caminho que saía sem os cabeçalhos.
+  for (const url of [
+    "/health",
+    "/api/offers",
+    "/api/offers/no-such-offer",
+    "/api/offers/%ZZ",
+  ]) {
+    const response = await app.inject({ method: "GET", url });
+
+    assert.equal(response.headers["x-content-type-options"], "nosniff");
+    assert.equal(response.headers["x-frame-options"], "DENY");
+    assert.equal(response.headers["referrer-policy"], "no-referrer");
+    assert.match(
+      String(response.headers["content-security-policy"]),
+      /frame-ancestors 'none'/,
+    );
+  }
+});
+
+test("an oversized body is reported as a size problem, not a validation one", async (t) => {
+  const app = await buildApp({ logger: false });
+  t.after(() => app.close());
+
+  const response = await app.inject({
+    headers: { "content-type": "application/json" },
+    method: "POST",
+    payload: JSON.stringify({ pad: "x".repeat(20_000) }),
+    url: "/api/offers",
+  });
+
+  assert.equal(response.statusCode, 413);
+  assert.match(
+    response.headers["content-type"] ?? "",
+    /^application\/problem\+json/,
+  );
+  // Um corpo grande demais não é falha de validação, e antes era rotulado como se fosse.
+  assert.equal(
+    response.json().type,
+    "https://api.example.invalid/problems/payload-too-large",
+  );
+});
+
+test("an internal fault answers with the declared 500 envelope", async (t) => {
+  const app = await buildApp({ logger: true });
+  app.get("/falha-interna-de-teste", async () => {
+    throw new Error("falha interna injetada pelo teste");
+  });
+  t.after(() => app.close());
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/falha-interna-de-teste",
+  });
+
+  assert.equal(response.statusCode, 500);
+  assert.match(
+    response.headers["content-type"] ?? "",
+    /^application\/problem\+json/,
+  );
+  assert.equal(
+    response.json().type,
+    "https://api.example.invalid/problems/internal-error",
+  );
+  assert.equal(typeof response.json().correlationId, "string");
+  assert.doesNotMatch(
+    response.body,
+    /falha interna injetada pelo teste|stack|node_modules/,
+  );
+});
