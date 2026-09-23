@@ -30,7 +30,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -38,6 +38,29 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run coverage
+      # A cobertura entra no relatório por arquivo carregado; sem `--silent` o npm
+      # interleavea o próprio banner e o `grep` da etapa seguinte não casa.
+      - name: Coverage gate
+        run: npm run coverage --silent
+      # Prova de estabilidade exigida por TESTING.md: três execuções, mesma tabela.
+      - name: Prove the coverage gate is stable across three runs
+        run: |
+          set -euo pipefail
+          for run in 1 2 3; do
+            npm run coverage --silent 2>/dev/null \
+              | grep -E "(app|config|problem|health|mock-read|server)\.js +\|" \
+              > "${RUNNER_TEMP}/coverage-run-${run}.txt"
+            test -s "${RUNNER_TEMP}/coverage-run-${run}.txt"
+          done
+          diff "${RUNNER_TEMP}/coverage-run-1.txt" "${RUNNER_TEMP}/coverage-run-2.txt"
+          diff "${RUNNER_TEMP}/coverage-run-1.txt" "${RUNNER_TEMP}/coverage-run-3.txt"
+      - name: Produce the LCOV report
+        run: |
+          set -euo pipefail
+          npm run coverage:lcov --silent 2>/dev/null
+          test -s dist/lcov.info
+          echo "lcov.info: $(wc -c < dist/lcov.info) bytes"
       - run: npm run openapi:validate
-      - run: npm audit --omit=dev --audit-level=high
+      # Sem `--omit=dev`: o compilador e o linter executam nos dois jobs e
+      # ficavam fora do escopo da auditoria.
+      - run: npm audit --audit-level=moderate

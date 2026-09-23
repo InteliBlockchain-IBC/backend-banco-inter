@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { problemSchema } from "../problem.js";
 
 const healthResponse = {
   additionalProperties: false,
@@ -22,12 +23,22 @@ export async function registerHealthRoutes(
 ): Promise<void> {
   app.get(
     "/health",
-    { schema: { response: { 200: healthResponse }, tags: ["saúde"] } },
+    {
+      schema: {
+        response: { 200: healthResponse, 500: problemSchema },
+        tags: ["saúde"],
+      },
+    },
     async () => ({ status: "ok" }),
   );
   app.get(
     "/ready",
-    { schema: { response: { 200: readyResponse }, tags: ["saúde"] } },
+    {
+      schema: {
+        response: { 200: readyResponse, 500: problemSchema },
+        tags: ["saúde"],
+      },
+    },
     async () => ({ dependencies: [], status: "ready" }),
   );
 }
