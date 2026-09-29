@@ -1,0 +1,1745 @@
+{
+  "info": {
+    "description": "API mock do backend Banco Inter, versão 0.2.0.\n\nTodas as respostas de /api/* são fictícias (cabeçalho X-Data-Source: mock).\nRodando a API localmente (npm run start), ajuste {{baseUrl}} se necessário.\nCarteiras de exemplo: lenderWallet = Banco Alfa, borrowerWallet = Banco Beta.\nAs requisições POST exigem o cabeçalho X-Wallet-Address.\nGuia completo em docs/api.md.",
+    "name": "Backend Banco Inter - API mock",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "0.2.0"
+  },
+  "item": [
+    {
+      "description": "Endereços dos contratos e estado do listener.",
+      "item": [
+        {
+          "name": "Contratos implantados",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "deployment"
+              ],
+              "raw": "{{baseUrl}}/api/deployment"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"brlTokenAddress\": \"0x0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b\",\n    \"chainId\": 11155111,\n    \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n    \"explorerUrl\": \"https://sepolia.etherscan.io/address/0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n    \"network\": \"sepolia\",\n    \"positionTokenAddress\": \"0x0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e\",\n    \"startBlock\": 9128000\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "deployment"
+                  ],
+                  "raw": "{{baseUrl}}/api/deployment"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "name": "Estado da sincronização",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sync-status"
+              ],
+              "raw": "{{baseUrl}}/api/sync-status"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"chainId\": 11155111,\n    \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n    \"lagSeconds\": 4,\n    \"lastProcessedBlock\": 9199999,\n    \"lastProcessedBlockHash\": \"0xb0000000000000000000000000000000000000000000000000000000008c617f\",\n    \"lastSyncedAt\": \"2026-09-29T11:59:56.000Z\",\n    \"stale\": false\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "sync-status"
+                  ],
+                  "raw": "{{baseUrl}}/api/sync-status"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        }
+      ],
+      "name": "Rede"
+    },
+    {
+      "description": "Leitura de ofertas e intenções de criar, aceitar, rejeitar e cancelar. As intenções devolvem contractCall para a carteira assinar.",
+      "item": [
+        {
+          "name": "Listar ofertas",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "offers"
+              ],
+              "raw": "{{baseUrl}}/api/offers"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": [\n    {\n      \"amountCents\": \"1500000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000018\",\n      \"createdAt\": \"2026-09-29T11:55:00.000Z\",\n      \"createdBlock\": 9199975,\n      \"expiresAt\": \"2026-09-29T12:55:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000009\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000003\",\n          \"name\": \"Banco Gama S.A. (fictício)\"\n        },\n        \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n      },\n      \"onchainOfferId\": \"9\",\n      \"onchainStatusCode\": 0,\n      \"rateCdiBps\": 10350,\n      \"settlement\": null,\n      \"status\": \"offered\",\n      \"termDays\": 2\n    },\n    {\n      \"amountCents\": \"4000000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000017\",\n      \"createdAt\": \"2026-09-29T11:50:00.000Z\",\n      \"createdBlock\": 9199950,\n      \"expiresAt\": \"2026-09-29T12:50:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000008\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"onchainOfferId\": \"8\",\n      \"onchainStatusCode\": 0,\n      \"rateCdiBps\": 10500,\n      \"settlement\": null,\n      \"status\": \"offered\",\n      \"termDays\": 1\n    },\n    {\n      \"amountCents\": \"3000000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000016\",\n      \"createdAt\": \"2026-09-29T09:00:00.000Z\",\n      \"createdBlock\": 9199100,\n      \"expiresAt\": \"2026-09-29T11:00:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000007\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"onchainOfferId\": \"7\",\n      \"onchainStatusCode\": 0,\n      \"rateCdiBps\": 10200,\n      \"settlement\": null,\n      \"status\": \"expired\",\n      \"termDays\": 1\n    },\n    {\n      \"amountCents\": \"3000000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000003\",\n          \"name\": \"Banco Gama S.A. (fictício)\"\n        },\n        \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000014\",\n      \"createdAt\": \"2026-09-29T07:00:00.000Z\",\n      \"createdBlock\": 9198500,\n      \"expiresAt\": \"2026-09-29T08:00:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000006\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"onchainOfferId\": \"6\",\n      \"onchainStatusCode\": 2,\n      \"rateCdiBps\": 10200,\n      \"settlement\": {\n        \"blockNumber\": 9198545,\n        \"positionTokenId\": \"6\",\n        \"settledAt\": \"2026-09-29T07:09:00.000Z\",\n        \"txHash\": \"0x7000000000000000000000000000000000000000000000000000000000000015\"\n      },\n      \"status\": \"settled\",\n      \"termDays\": 1\n    },\n    {\n      \"amountCents\": \"1200000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000012\",\n      \"createdAt\": \"2026-09-28T16:00:00.000Z\",\n      \"createdBlock\": 9194000,\n      \"expiresAt\": \"2026-09-28T17:00:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000005\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000003\",\n          \"name\": \"Banco Gama S.A. (fictício)\"\n        },\n        \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n      },\n      \"onchainOfferId\": \"5\",\n      \"onchainStatusCode\": 4,\n      \"rateCdiBps\": 10150,\n      \"settlement\": null,\n      \"status\": \"expired\",\n      \"termDays\": 1\n    },\n    {\n      \"amountCents\": \"7000000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000003\",\n          \"name\": \"Banco Gama S.A. (fictício)\"\n        },\n        \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000010\",\n      \"createdAt\": \"2026-09-28T10:00:00.000Z\",\n      \"createdBlock\": 9192200,\n      \"expiresAt\": \"2026-09-28T11:00:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000004\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"onchainOfferId\": \"4\",\n      \"onchainStatusCode\": 5,\n      \"rateCdiBps\": 10400,\n      \"settlement\": null,\n      \"status\": \"rejected\",\n      \"termDays\": 1\n    },\n    {\n      \"amountCents\": \"1000000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000003\",\n          \"name\": \"Banco Gama S.A. (fictício)\"\n        },\n        \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x700000000000000000000000000000000000000000000000000000000000000e\",\n      \"createdAt\": \"2026-09-28T06:00:00.000Z\",\n      \"createdBlock\": 9191000,\n      \"expiresAt\": \"2026-09-28T07:00:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000003\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"onchainOfferId\": \"3\",\n      \"onchainStatusCode\": 3,\n      \"rateCdiBps\": 10300,\n      \"settlement\": null,\n      \"status\": \"cancelled\",\n      \"termDays\": 1\n    },\n    {\n      \"amountCents\": \"2500000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x700000000000000000000000000000000000000000000000000000000000000c\",\n      \"createdAt\": \"2026-09-27T12:00:00.000Z\",\n      \"createdBlock\": 9185600,\n      \"expiresAt\": \"2026-09-27T13:00:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000002\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000003\",\n          \"name\": \"Banco Gama S.A. (fictício)\"\n        },\n        \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n      },\n      \"onchainOfferId\": \"2\",\n      \"onchainStatusCode\": 2,\n      \"rateCdiBps\": 10100,\n      \"settlement\": {\n        \"blockNumber\": 9185635,\n        \"positionTokenId\": \"2\",\n        \"settledAt\": \"2026-09-27T12:07:00.000Z\",\n        \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000d\"\n      },\n      \"status\": \"settled\",\n      \"termDays\": 1\n    },\n    {\n      \"amountCents\": \"5000000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x700000000000000000000000000000000000000000000000000000000000000a\",\n      \"createdAt\": \"2026-09-26T12:00:00.000Z\",\n      \"createdBlock\": 9178400,\n      \"expiresAt\": \"2026-09-26T13:00:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000001\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"onchainOfferId\": \"1\",\n      \"onchainStatusCode\": 2,\n      \"rateCdiBps\": 10250,\n      \"settlement\": {\n        \"blockNumber\": 9178460,\n        \"positionTokenId\": \"1\",\n        \"settledAt\": \"2026-09-26T12:12:00.000Z\",\n        \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000b\"\n      },\n      \"status\": \"settled\",\n      \"termDays\": 1\n    }\n  ],\n  \"meta\": {\n    \"limit\": 50,\n    \"offset\": 0,\n    \"source\": \"mock\",\n    \"total\": 9\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers"
+                }
+              },
+              "status": "OK"
+            },
+            {
+              "body": "{\n  \"data\": [\n    {\n      \"amountCents\": \"1500000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000018\",\n      \"createdAt\": \"2026-09-29T11:55:00.000Z\",\n      \"createdBlock\": 9199975,\n      \"expiresAt\": \"2026-09-29T12:55:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000009\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000003\",\n          \"name\": \"Banco Gama S.A. (fictício)\"\n        },\n        \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n      },\n      \"onchainOfferId\": \"9\",\n      \"onchainStatusCode\": 0,\n      \"rateCdiBps\": 10350,\n      \"settlement\": null,\n      \"status\": \"offered\",\n      \"termDays\": 2\n    },\n    {\n      \"amountCents\": \"4000000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000017\",\n      \"createdAt\": \"2026-09-29T11:50:00.000Z\",\n      \"createdBlock\": 9199950,\n      \"expiresAt\": \"2026-09-29T12:50:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000008\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"onchainOfferId\": \"8\",\n      \"onchainStatusCode\": 0,\n      \"rateCdiBps\": 10500,\n      \"settlement\": null,\n      \"status\": \"offered\",\n      \"termDays\": 1\n    }\n  ],\n  \"meta\": {\n    \"limit\": 2,\n    \"offset\": 0,\n    \"source\": \"mock\",\n    \"total\": 9\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - Página de 2",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "2"
+                    }
+                  ],
+                  "raw": "{{baseUrl}}/api/offers?limit=2"
+                }
+              },
+              "status": "OK"
+            },
+            {
+              "body": "{\n  \"correlationId\": \"req-6\",\n  \"detail\": \"A validação da requisição falhou: querystring/status must be equal to one of the allowed values.\",\n  \"status\": 400,\n  \"title\": \"Requisição inválida\",\n  \"type\": \"https://api.example.invalid/problems/validation-error\"\n}",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json; charset=utf-8"
+                }
+              ],
+              "name": "400 - status desconhecido",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "accepted"
+                    }
+                  ],
+                  "raw": "{{baseUrl}}/api/offers?status=accepted"
+                }
+              },
+              "status": "Bad Request"
+            }
+          ]
+        },
+        {
+          "name": "Ofertas abertas recebidas pelo tomador",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "offers"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "offered"
+                },
+                {
+                  "key": "wallet",
+                  "value": "{{borrowerWallet}}"
+                },
+                {
+                  "key": "role",
+                  "value": "borrower"
+                }
+              ],
+              "raw": "{{baseUrl}}/api/offers?status=offered&wallet={{borrowerWallet}}&role=borrower"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": [\n    {\n      \"amountCents\": \"4000000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000017\",\n      \"createdAt\": \"2026-09-29T11:50:00.000Z\",\n      \"createdBlock\": 9199950,\n      \"expiresAt\": \"2026-09-29T12:50:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000008\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"onchainOfferId\": \"8\",\n      \"onchainStatusCode\": 0,\n      \"rateCdiBps\": 10500,\n      \"settlement\": null,\n      \"status\": \"offered\",\n      \"termDays\": 1\n    }\n  ],\n  \"meta\": {\n    \"limit\": 50,\n    \"offset\": 0,\n    \"source\": \"mock\",\n    \"total\": 1\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "offered"
+                    },
+                    {
+                      "key": "wallet",
+                      "value": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+                    },
+                    {
+                      "key": "role",
+                      "value": "borrower"
+                    }
+                  ],
+                  "raw": "{{baseUrl}}/api/offers?status=offered&wallet=0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2&role=borrower"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "name": "Detalhar oferta",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "offers",
+                "{{openOfferId}}"
+              ],
+              "raw": "{{baseUrl}}/api/offers/{{openOfferId}}"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"amountCents\": \"4000000000\",\n    \"borrower\": {\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000002\",\n        \"name\": \"Banco Beta S.A. (fictício)\"\n      },\n      \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n    },\n    \"chainId\": 11155111,\n    \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n    \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000017\",\n    \"createdAt\": \"2026-09-29T11:50:00.000Z\",\n    \"createdBlock\": 9199950,\n    \"expiresAt\": \"2026-09-29T12:50:00.000Z\",\n    \"id\": \"a0000000-0000-4000-8000-000000000008\",\n    \"lender\": {\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000001\",\n        \"name\": \"Banco Alfa S.A. (fictício)\"\n      },\n      \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n    },\n    \"onchainOfferId\": \"8\",\n    \"onchainStatusCode\": 0,\n    \"rateCdiBps\": 10500,\n    \"settlement\": null,\n    \"status\": \"offered\",\n    \"termDays\": 1\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000008"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers/a0000000-0000-4000-8000-000000000008"
+                }
+              },
+              "status": "OK"
+            },
+            {
+              "body": "{\n  \"data\": {\n    \"amountCents\": \"5000000000\",\n    \"borrower\": {\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000002\",\n        \"name\": \"Banco Beta S.A. (fictício)\"\n      },\n      \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n    },\n    \"chainId\": 11155111,\n    \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n    \"createTxHash\": \"0x700000000000000000000000000000000000000000000000000000000000000a\",\n    \"createdAt\": \"2026-09-26T12:00:00.000Z\",\n    \"createdBlock\": 9178400,\n    \"expiresAt\": \"2026-09-26T13:00:00.000Z\",\n    \"id\": \"a0000000-0000-4000-8000-000000000001\",\n    \"lender\": {\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000001\",\n        \"name\": \"Banco Alfa S.A. (fictício)\"\n      },\n      \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n    },\n    \"onchainOfferId\": \"1\",\n    \"onchainStatusCode\": 2,\n    \"rateCdiBps\": 10250,\n    \"settlement\": {\n      \"blockNumber\": 9178460,\n      \"positionTokenId\": \"1\",\n      \"settledAt\": \"2026-09-26T12:12:00.000Z\",\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000b\"\n    },\n    \"status\": \"settled\",\n    \"termDays\": 1\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - Liquidada",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000001"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers/a0000000-0000-4000-8000-000000000001"
+                }
+              },
+              "status": "OK"
+            },
+            {
+              "body": "{\n  \"correlationId\": \"req-a\",\n  \"detail\": \"A oferta não existe.\",\n  \"status\": 404,\n  \"title\": \"Recurso não encontrado\",\n  \"type\": \"https://api.example.invalid/problems/not-found\"\n}",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json; charset=utf-8"
+                }
+              ],
+              "name": "404 - oferta inexistente",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000999"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers/a0000000-0000-4000-8000-000000000999"
+                }
+              },
+              "status": "Not Found"
+            }
+          ]
+        },
+        {
+          "name": "Histórico da oferta",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "offers",
+                "{{settledOfferId}}",
+                "events"
+              ],
+              "raw": "{{baseUrl}}/api/offers/{{settledOfferId}}/events"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": [\n    {\n      \"args\": {\n        \"amount\": \"5000000000\",\n        \"borrower\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\",\n        \"expiresAt\": \"1790427600\",\n        \"lender\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\n        \"offerId\": \"1\",\n        \"rateCDI\": \"10250\",\n        \"term\": \"1\"\n      },\n      \"blockHash\": \"0xb0000000000000000000000000000000000000000000000000000000008c0d20\",\n      \"blockNumber\": 9178400,\n      \"blockTimestamp\": \"2026-09-26T12:00:00.000Z\",\n      \"eventName\": \"OfferCreated\",\n      \"logIndex\": 0,\n      \"offerId\": \"a0000000-0000-4000-8000-000000000001\",\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000a\"\n    },\n    {\n      \"args\": {\n        \"borrower\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\",\n        \"offerId\": \"1\",\n        \"timestamp\": \"1790424720\"\n      },\n      \"blockHash\": \"0xb0000000000000000000000000000000000000000000000000000000008c0d5c\",\n      \"blockNumber\": 9178460,\n      \"blockTimestamp\": \"2026-09-26T12:12:00.000Z\",\n      \"eventName\": \"OfferAccepted\",\n      \"logIndex\": 0,\n      \"offerId\": \"a0000000-0000-4000-8000-000000000001\",\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000b\"\n    },\n    {\n      \"args\": {\n        \"amount\": \"5000000000\",\n        \"borrower\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\",\n        \"lender\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\n        \"offerId\": \"1\",\n        \"positionTokenId\": \"1\",\n        \"rateCDI\": \"10250\",\n        \"term\": \"1\",\n        \"timestamp\": \"1790424720\"\n      },\n      \"blockHash\": \"0xb0000000000000000000000000000000000000000000000000000000008c0d5c\",\n      \"blockNumber\": 9178460,\n      \"blockTimestamp\": \"2026-09-26T12:12:00.000Z\",\n      \"eventName\": \"OfferSettled\",\n      \"logIndex\": 1,\n      \"offerId\": \"a0000000-0000-4000-8000-000000000001\",\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000b\"\n    }\n  ],\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000001",
+                    "events"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers/a0000000-0000-4000-8000-000000000001/events"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 202) {",
+                  "  pm.collectionVariables.set(\"requestId\", pm.response.json().data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Criar oferta (intenção)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"amountCents\": \"100000000\",\n  \"borrowerWallet\": \"{{borrowerWallet}}\",\n  \"rateCdiBps\": 10500,\n  \"termDays\": 1,\n  \"validitySeconds\": 3600\n}"
+            },
+            "description": "Salva o id da intenção em {{requestId}} para a requisição de envio do hash.",
+            "header": [
+              {
+                "key": "X-Wallet-Address",
+                "value": "{{lenderWallet}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "offers"
+              ],
+              "raw": "{{baseUrl}}/api/offers"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"action\": \"create_offer\",\n    \"contractCall\": {\n      \"args\": [\n        \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\",\n        \"100000000\",\n        \"10500\",\n        \"1\",\n        \"3600\"\n      ],\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"functionName\": \"createOffer\"\n    },\n    \"createdAt\": \"2026-09-29T12:00:00.000Z\",\n    \"expiresAt\": \"2026-09-29T12:15:00.000Z\",\n    \"failureCode\": null,\n    \"id\": \"f0000000-0000-4000-8000-000000000002\",\n    \"offerId\": null,\n    \"params\": {\n      \"amountCents\": \"100000000\",\n      \"borrowerWallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\",\n      \"rateCdiBps\": 10500,\n      \"termDays\": 1,\n      \"validitySeconds\": 3600\n    },\n    \"requesterWallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\n    \"status\": \"pending\",\n    \"submittedAt\": null,\n    \"txHash\": null\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 202,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "202 - exemplo",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{lenderWallet}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers"
+                },
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\n  \"amountCents\": \"100000000\",\n  \"borrowerWallet\": \"{{borrowerWallet}}\",\n  \"rateCdiBps\": 10500,\n  \"termDays\": 1,\n  \"validitySeconds\": 3600\n}"
+                }
+              },
+              "status": "Accepted"
+            },
+            {
+              "body": "{\n  \"correlationId\": \"req-e\",\n  \"detail\": \"O tomador tem 15000000000 centavos de limite disponível e a oferta pede 99900000000.\",\n  \"status\": 422,\n  \"title\": \"Limite insuficiente\",\n  \"type\": \"https://api.example.invalid/problems/insufficient-limit\"\n}",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json; charset=utf-8"
+                }
+              ],
+              "name": "422 - limite insuficiente",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{lenderWallet}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers"
+                },
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\n  \"amountCents\": \"99900000000\",\n  \"borrowerWallet\": \"{{borrowerWallet}}\",\n  \"rateCdiBps\": 10500,\n  \"termDays\": 1,\n  \"validitySeconds\": 3600\n}"
+                }
+              },
+              "status": "Unprocessable Entity"
+            },
+            {
+              "body": "{\n  \"correlationId\": \"req-f\",\n  \"detail\": \"A carteira tomadora não pode ser a mesma da ofertante.\",\n  \"status\": 422,\n  \"title\": \"Contraparte inválida\",\n  \"type\": \"https://api.example.invalid/problems/invalid-counterparty\"\n}",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json; charset=utf-8"
+                }
+              ],
+              "name": "422 - tomador igual ao ofertante",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{lenderWallet}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers"
+                },
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\n  \"amountCents\": \"100000000\",\n  \"borrowerWallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\n  \"rateCdiBps\": 10500,\n  \"termDays\": 1,\n  \"validitySeconds\": 3600\n}"
+                }
+              },
+              "status": "Unprocessable Entity"
+            },
+            {
+              "body": "{\n  \"correlationId\": \"req-g\",\n  \"detail\": \"A carteira informada em X-Wallet-Address não está autorizada no contrato.\",\n  \"status\": 403,\n  \"title\": \"Carteira não cadastrada\",\n  \"type\": \"https://api.example.invalid/problems/not-registered-institution\"\n}",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json; charset=utf-8"
+                }
+              ],
+              "name": "403 - carteira revogada",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{lenderWallet}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers"
+                },
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\n  \"amountCents\": \"100000000\",\n  \"borrowerWallet\": \"{{borrowerWallet}}\",\n  \"rateCdiBps\": 10500,\n  \"termDays\": 1,\n  \"validitySeconds\": 3600\n}"
+                }
+              },
+              "status": "Forbidden"
+            },
+            {
+              "body": "{\n  \"correlationId\": \"req-h\",\n  \"detail\": \"A validação da requisição falhou: body/amountCents must be string.\",\n  \"status\": 400,\n  \"title\": \"Requisição inválida\",\n  \"type\": \"https://api.example.invalid/problems/validation-error\"\n}",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json; charset=utf-8"
+                }
+              ],
+              "name": "400 - amountCents como número",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{lenderWallet}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers"
+                },
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\n  \"amountCents\": 100000000,\n  \"borrowerWallet\": \"{{borrowerWallet}}\",\n  \"rateCdiBps\": 10500,\n  \"termDays\": 1,\n  \"validitySeconds\": 3600\n}"
+                }
+              },
+              "status": "Bad Request"
+            }
+          ]
+        },
+        {
+          "name": "Aceitar oferta (intenção)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Wallet-Address",
+                "value": "{{borrowerWallet}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "offers",
+                "{{openOfferId}}",
+                "accept"
+              ],
+              "raw": "{{baseUrl}}/api/offers/{{openOfferId}}/accept"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"action\": \"accept_offer\",\n    \"contractCall\": {\n      \"args\": [\n        \"8\"\n      ],\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"functionName\": \"acceptOffer\"\n    },\n    \"createdAt\": \"2026-09-29T12:00:00.000Z\",\n    \"expiresAt\": \"2026-09-29T12:15:00.000Z\",\n    \"failureCode\": null,\n    \"id\": \"f0000000-0000-4000-8000-000000000003\",\n    \"offerId\": \"a0000000-0000-4000-8000-000000000008\",\n    \"params\": null,\n    \"requesterWallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\",\n    \"status\": \"pending\",\n    \"submittedAt\": null,\n    \"txHash\": null\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 202,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "202 - exemplo",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{borrowerWallet}}"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000008",
+                    "accept"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers/a0000000-0000-4000-8000-000000000008/accept"
+                }
+              },
+              "status": "Accepted"
+            },
+            {
+              "body": "{\n  \"correlationId\": \"req-j\",\n  \"detail\": \"Somente a carteira tomadora indicada na oferta pode aceitá-la ou rejeitá-la.\",\n  \"status\": 403,\n  \"title\": \"Carteira não é a tomadora\",\n  \"type\": \"https://api.example.invalid/problems/not-eligible-borrower\"\n}",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json; charset=utf-8"
+                }
+              ],
+              "name": "403 - quem aceita não é o tomador",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{borrowerWallet}}"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000008",
+                    "accept"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers/a0000000-0000-4000-8000-000000000008/accept"
+                }
+              },
+              "status": "Forbidden"
+            },
+            {
+              "body": "{\n  \"correlationId\": \"req-k\",\n  \"detail\": \"A oferta está settled; a ação exige uma oferta em offered.\",\n  \"status\": 409,\n  \"title\": \"Estado da oferta não permite a ação\",\n  \"type\": \"https://api.example.invalid/problems/invalid-offer-status\"\n}",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json; charset=utf-8"
+                }
+              ],
+              "name": "409 - oferta já liquidada",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{borrowerWallet}}"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000001",
+                    "accept"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers/a0000000-0000-4000-8000-000000000001/accept"
+                }
+              },
+              "status": "Conflict"
+            },
+            {
+              "body": "{\n  \"correlationId\": \"req-l\",\n  \"detail\": \"A janela de validade da oferta terminou; ela não pode mais ser aceita, rejeitada ou cancelada.\",\n  \"status\": 409,\n  \"title\": \"Oferta vencida\",\n  \"type\": \"https://api.example.invalid/problems/offer-expired\"\n}",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json; charset=utf-8"
+                }
+              ],
+              "name": "409 - oferta vencida",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{borrowerWallet}}"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000007",
+                    "accept"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers/a0000000-0000-4000-8000-000000000007/accept"
+                }
+              },
+              "status": "Conflict"
+            }
+          ]
+        },
+        {
+          "name": "Rejeitar oferta (intenção)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Wallet-Address",
+                "value": "{{borrowerWallet}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "offers",
+                "{{openOfferId}}",
+                "reject"
+              ],
+              "raw": "{{baseUrl}}/api/offers/{{openOfferId}}/reject"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"action\": \"reject_offer\",\n    \"contractCall\": {\n      \"args\": [\n        \"8\"\n      ],\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"functionName\": \"rejectOffer\"\n    },\n    \"createdAt\": \"2026-09-29T12:00:00.000Z\",\n    \"expiresAt\": \"2026-09-29T12:15:00.000Z\",\n    \"failureCode\": null,\n    \"id\": \"f0000000-0000-4000-8000-000000000004\",\n    \"offerId\": \"a0000000-0000-4000-8000-000000000008\",\n    \"params\": null,\n    \"requesterWallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\",\n    \"status\": \"pending\",\n    \"submittedAt\": null,\n    \"txHash\": null\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 202,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "202 - exemplo",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{borrowerWallet}}"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000008",
+                    "reject"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers/a0000000-0000-4000-8000-000000000008/reject"
+                }
+              },
+              "status": "Accepted"
+            }
+          ]
+        },
+        {
+          "name": "Cancelar oferta (intenção)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Wallet-Address",
+                "value": "{{lenderWallet}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "offers",
+                "{{openOfferId}}",
+                "cancel"
+              ],
+              "raw": "{{baseUrl}}/api/offers/{{openOfferId}}/cancel"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"action\": \"cancel_offer\",\n    \"contractCall\": {\n      \"args\": [\n        \"8\"\n      ],\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"functionName\": \"cancelOffer\"\n    },\n    \"createdAt\": \"2026-09-29T12:00:00.000Z\",\n    \"expiresAt\": \"2026-09-29T12:15:00.000Z\",\n    \"failureCode\": null,\n    \"id\": \"f0000000-0000-4000-8000-000000000005\",\n    \"offerId\": \"a0000000-0000-4000-8000-000000000008\",\n    \"params\": null,\n    \"requesterWallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\n    \"status\": \"pending\",\n    \"submittedAt\": null,\n    \"txHash\": null\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 202,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "202 - exemplo",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{lenderWallet}}"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000008",
+                    "cancel"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers/a0000000-0000-4000-8000-000000000008/cancel"
+                }
+              },
+              "status": "Accepted"
+            },
+            {
+              "body": "{\n  \"correlationId\": \"req-o\",\n  \"detail\": \"Somente a carteira ofertante pode cancelar a oferta.\",\n  \"status\": 403,\n  \"title\": \"Carteira não é a ofertante\",\n  \"type\": \"https://api.example.invalid/problems/not-offer-owner\"\n}",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json; charset=utf-8"
+                }
+              ],
+              "name": "403 - quem cancela não é o ofertante",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{lenderWallet}}"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000008",
+                    "cancel"
+                  ],
+                  "raw": "{{baseUrl}}/api/offers/a0000000-0000-4000-8000-000000000008/cancel"
+                }
+              },
+              "status": "Forbidden"
+            }
+          ]
+        }
+      ],
+      "name": "Ofertas"
+    },
+    {
+      "description": "Rode 'Criar oferta (intenção)' antes: ele preenche {{requestId}}.",
+      "item": [
+        {
+          "name": "Consultar intenção",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transaction-requests",
+                "{{requestId}}"
+              ],
+              "raw": "{{baseUrl}}/api/transaction-requests/{{requestId}}"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"action\": \"create_offer\",\n    \"contractCall\": {\n      \"args\": [\n        \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\",\n        \"100000000\",\n        \"10500\",\n        \"1\",\n        \"3600\"\n      ],\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"functionName\": \"createOffer\"\n    },\n    \"createdAt\": \"2026-09-29T12:00:00.000Z\",\n    \"expiresAt\": \"2026-09-29T12:15:00.000Z\",\n    \"failureCode\": null,\n    \"id\": \"f0000000-0000-4000-8000-000000000001\",\n    \"offerId\": null,\n    \"params\": {\n      \"amountCents\": \"100000000\",\n      \"borrowerWallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\",\n      \"rateCdiBps\": 10500,\n      \"termDays\": 1,\n      \"validitySeconds\": 3600\n    },\n    \"requesterWallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\n    \"status\": \"pending\",\n    \"submittedAt\": null,\n    \"txHash\": null\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transaction-requests",
+                    "{{requestId}}"
+                  ],
+                  "raw": "{{baseUrl}}/api/transaction-requests/{{requestId}}"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "name": "Informar hash da transação",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"txHash\": \"0xabababababababababababababababababababababababababababababababab\"\n}"
+            },
+            "header": [
+              {
+                "key": "X-Wallet-Address",
+                "value": "{{lenderWallet}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transaction-requests",
+                "{{requestId}}",
+                "submission"
+              ],
+              "raw": "{{baseUrl}}/api/transaction-requests/{{requestId}}/submission"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"action\": \"create_offer\",\n    \"contractCall\": {\n      \"args\": [\n        \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\",\n        \"100000000\",\n        \"10500\",\n        \"1\",\n        \"3600\"\n      ],\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"functionName\": \"createOffer\"\n    },\n    \"createdAt\": \"2026-09-29T12:00:00.000Z\",\n    \"expiresAt\": \"2026-09-29T12:15:00.000Z\",\n    \"failureCode\": null,\n    \"id\": \"f0000000-0000-4000-8000-000000000001\",\n    \"offerId\": null,\n    \"params\": {\n      \"amountCents\": \"100000000\",\n      \"borrowerWallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\",\n      \"rateCdiBps\": 10500,\n      \"termDays\": 1,\n      \"validitySeconds\": 3600\n    },\n    \"requesterWallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\n    \"status\": \"submitted\",\n    \"submittedAt\": \"2026-09-29T12:00:00.000Z\",\n    \"txHash\": \"0xabababababababababababababababababababababababababababababababab\"\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "X-Wallet-Address",
+                    "value": "{{lenderWallet}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transaction-requests",
+                    "{{requestId}}",
+                    "submission"
+                  ],
+                  "raw": "{{baseUrl}}/api/transaction-requests/{{requestId}}/submission"
+                },
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\n  \"txHash\": \"0xabababababababababababababababababababababababababababababababab\"\n}"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        }
+      ],
+      "name": "Intenções"
+    },
+    {
+      "description": "Operações liquidadas (comprovantes DvP).",
+      "item": [
+        {
+          "name": "Listar operações",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "operations"
+              ],
+              "query": [
+                {
+                  "key": "wallet",
+                  "value": "{{lenderWallet}}"
+                }
+              ],
+              "raw": "{{baseUrl}}/api/operations?wallet={{lenderWallet}}"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": [\n    {\n      \"amountCents\": \"2500000000\",\n      \"blockHash\": \"0xb0000000000000000000000000000000000000000000000000000000008c2963\",\n      \"blockNumber\": 9185635,\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"explorerUrl\": \"https://sepolia.etherscan.io/tx/0x700000000000000000000000000000000000000000000000000000000000000d\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000003\",\n          \"name\": \"Banco Gama S.A. (fictício)\"\n        },\n        \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n      },\n      \"offerId\": \"a0000000-0000-4000-8000-000000000002\",\n      \"onchainOfferId\": \"2\",\n      \"positionTokenId\": \"2\",\n      \"rateCdiBps\": 10100,\n      \"settledAt\": \"2026-09-27T12:07:00.000Z\",\n      \"termDays\": 1,\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000d\"\n    },\n    {\n      \"amountCents\": \"5000000000\",\n      \"blockHash\": \"0xb0000000000000000000000000000000000000000000000000000000008c0d5c\",\n      \"blockNumber\": 9178460,\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"explorerUrl\": \"https://sepolia.etherscan.io/tx/0x700000000000000000000000000000000000000000000000000000000000000b\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"offerId\": \"a0000000-0000-4000-8000-000000000001\",\n      \"onchainOfferId\": \"1\",\n      \"positionTokenId\": \"1\",\n      \"rateCdiBps\": 10250,\n      \"settledAt\": \"2026-09-26T12:12:00.000Z\",\n      \"termDays\": 1,\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000b\"\n    }\n  ],\n  \"meta\": {\n    \"limit\": 50,\n    \"offset\": 0,\n    \"source\": \"mock\",\n    \"total\": 2\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "operations"
+                  ],
+                  "query": [
+                    {
+                      "key": "wallet",
+                      "value": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+                    }
+                  ],
+                  "raw": "{{baseUrl}}/api/operations?wallet=0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "name": "Detalhar operação",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "operations",
+                "{{settledTxHash}}"
+              ],
+              "raw": "{{baseUrl}}/api/operations/{{settledTxHash}}"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"amountCents\": \"3000000000\",\n    \"blockHash\": \"0xb0000000000000000000000000000000000000000000000000000000008c5bd1\",\n    \"blockNumber\": 9198545,\n    \"borrower\": {\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000003\",\n        \"name\": \"Banco Gama S.A. (fictício)\"\n      },\n      \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n    },\n    \"chainId\": 11155111,\n    \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n    \"explorerUrl\": \"https://sepolia.etherscan.io/tx/0x7000000000000000000000000000000000000000000000000000000000000015\",\n    \"lender\": {\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000002\",\n        \"name\": \"Banco Beta S.A. (fictício)\"\n      },\n      \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n    },\n    \"offerId\": \"a0000000-0000-4000-8000-000000000006\",\n    \"onchainOfferId\": \"6\",\n    \"positionTokenId\": \"6\",\n    \"rateCdiBps\": 10200,\n    \"settledAt\": \"2026-09-29T07:09:00.000Z\",\n    \"termDays\": 1,\n    \"txHash\": \"0x7000000000000000000000000000000000000000000000000000000000000015\"\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "operations",
+                    "0x7000000000000000000000000000000000000000000000000000000000000015"
+                  ],
+                  "raw": "{{baseUrl}}/api/operations/0x7000000000000000000000000000000000000000000000000000000000000015"
+                }
+              },
+              "status": "OK"
+            },
+            {
+              "body": "{\n  \"correlationId\": \"req-t\",\n  \"detail\": \"A validação da requisição falhou: params/txHash must match pattern \\\"^0x[0-9a-fA-F]{64}$\\\".\",\n  \"status\": 400,\n  \"title\": \"Requisição inválida\",\n  \"type\": \"https://api.example.invalid/problems/validation-error\"\n}",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json; charset=utf-8"
+                }
+              ],
+              "name": "400 - hash malformado",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "operations",
+                    "0x1234"
+                  ],
+                  "raw": "{{baseUrl}}/api/operations/0x1234"
+                }
+              },
+              "status": "Bad Request"
+            }
+          ]
+        }
+      ],
+      "name": "Operações"
+    },
+    {
+      "description": "Limites por carteira e histórico de mudanças.",
+      "item": [
+        {
+          "name": "Tomadores elegíveis para uma oferta",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "credit-limits"
+              ],
+              "query": [
+                {
+                  "key": "registered",
+                  "value": "true"
+                },
+                {
+                  "key": "minAvailableCents",
+                  "value": "100000000"
+                },
+                {
+                  "key": "excludeWallet",
+                  "value": "{{lenderWallet}}"
+                }
+              ],
+              "raw": "{{baseUrl}}/api/credit-limits?registered=true&minAvailableCents=100000000&excludeWallet={{lenderWallet}}"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": [\n    {\n      \"availableLimitCents\": \"15000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000002\",\n        \"name\": \"Banco Beta S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-26T12:12:00.000Z\",\n      \"observedBlock\": 9178460,\n      \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n    },\n    {\n      \"availableLimitCents\": \"8000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000003\",\n        \"name\": \"Banco Gama S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-29T07:09:00.000Z\",\n      \"observedBlock\": 9198545,\n      \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n    }\n  ],\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "credit-limits"
+                  ],
+                  "query": [
+                    {
+                      "key": "registered",
+                      "value": "true"
+                    },
+                    {
+                      "key": "minAvailableCents",
+                      "value": "100000000"
+                    },
+                    {
+                      "key": "excludeWallet",
+                      "value": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+                    }
+                  ],
+                  "raw": "{{baseUrl}}/api/credit-limits?registered=true&minAvailableCents=100000000&excludeWallet=0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+                }
+              },
+              "status": "OK"
+            },
+            {
+              "body": "{\n  \"data\": [\n    {\n      \"availableLimitCents\": \"30000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000001\",\n        \"name\": \"Banco Alfa S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-27T12:07:00.000Z\",\n      \"observedBlock\": 9185635,\n      \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n    },\n    {\n      \"availableLimitCents\": \"15000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000002\",\n        \"name\": \"Banco Beta S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-26T12:12:00.000Z\",\n      \"observedBlock\": 9178460,\n      \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n    },\n    {\n      \"availableLimitCents\": \"8000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000003\",\n        \"name\": \"Banco Gama S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-29T07:09:00.000Z\",\n      \"observedBlock\": 9198545,\n      \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n    },\n    {\n      \"availableLimitCents\": \"5000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000004\",\n        \"name\": \"Banco Delta S.A. (fictício)\"\n      },\n      \"isRegistered\": false,\n      \"observedAt\": \"2026-09-25T12:00:00.000Z\",\n      \"observedBlock\": 9171200,\n      \"wallet\": \"0xd4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4\"\n    }\n  ],\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - Todas as carteiras",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "credit-limits"
+                  ],
+                  "raw": "{{baseUrl}}/api/credit-limits"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "name": "Detalhar limite",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "credit-limits",
+                "{{borrowerWallet}}"
+              ],
+              "raw": "{{baseUrl}}/api/credit-limits/{{borrowerWallet}}"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"availableLimitCents\": \"15000000000\",\n    \"institution\": {\n      \"id\": \"b0000000-0000-4000-8000-000000000002\",\n      \"name\": \"Banco Beta S.A. (fictício)\"\n    },\n    \"isRegistered\": true,\n    \"observedAt\": \"2026-09-26T12:12:00.000Z\",\n    \"observedBlock\": 9178460,\n    \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "credit-limits",
+                    "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+                  ],
+                  "raw": "{{baseUrl}}/api/credit-limits/0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "name": "Histórico de limite",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "credit-limits",
+                "{{borrowerWallet}}",
+                "history"
+              ],
+              "raw": "{{baseUrl}}/api/credit-limits/{{borrowerWallet}}/history"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": [\n    {\n      \"blockTimestamp\": \"2026-09-26T12:12:00.000Z\",\n      \"changeKind\": \"settlement\",\n      \"logIndex\": 1,\n      \"newLimitCents\": \"15000000000\",\n      \"offerId\": \"a0000000-0000-4000-8000-000000000001\",\n      \"previousLimitCents\": \"20000000000\",\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000b\"\n    },\n    {\n      \"blockTimestamp\": \"2026-09-20T13:10:00.000Z\",\n      \"changeKind\": \"admin_update\",\n      \"logIndex\": 0,\n      \"newLimitCents\": \"20000000000\",\n      \"offerId\": null,\n      \"previousLimitCents\": \"0\",\n      \"txHash\": \"0x7000000000000000000000000000000000000000000000000000000000000004\"\n    }\n  ],\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "credit-limits",
+                    "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+                    "history"
+                  ],
+                  "raw": "{{baseUrl}}/api/credit-limits/0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2/history"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        }
+      ],
+      "name": "Limites"
+    },
+    {
+      "description": "Processo e contrato da API.",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ],
+              "raw": "{{baseUrl}}/health"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"status\": \"ok\"\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "health"
+                  ],
+                  "raw": "{{baseUrl}}/health"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ready"
+              ],
+              "raw": "{{baseUrl}}/ready"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"dependencies\": [],\n  \"status\": \"ready\"\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "ready"
+                  ],
+                  "raw": "{{baseUrl}}/ready"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "name": "Contrato OpenAPI",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "openapi.json"
+              ],
+              "raw": "{{baseUrl}}/openapi.json"
+            }
+          },
+          "response": [
+            {
+              "body": "(documento OpenAPI completo; veja docs/openapi.json)",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "openapi.json"
+                  ],
+                  "raw": "{{baseUrl}}/openapi.json"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        }
+      ],
+      "name": "Saúde e documentação"
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3000"
+    },
+    {
+      "key": "borrowerWallet",
+      "value": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+    },
+    {
+      "key": "lenderWallet",
+      "value": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+    },
+    {
+      "key": "openOfferId",
+      "value": "a0000000-0000-4000-8000-000000000008"
+    },
+    {
+      "key": "requestId",
+      "value": ""
+    },
+    {
+      "key": "settledOfferId",
+      "value": "a0000000-0000-4000-8000-000000000001"
+    },
+    {
+      "key": "settledTxHash",
+      "value": "0x7000000000000000000000000000000000000000000000000000000000000015"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "name": "backend-banco-inter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,6 +14,7 @@
     "coverage": "npm run build && node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=75 dist/test/*.test.js",
     "openapi:validate": "npm run build && node --test dist/test/openapi.test.js",
     "start": "node dist/src/server.js",
+    "docs:export": "npm run build && node dist/scripts/export-docs.js",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "biome lint ."
