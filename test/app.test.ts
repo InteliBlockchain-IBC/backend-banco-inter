@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildApp } from "../src/app.js";
-import { MOCK_TRANSACTION_HASH } from "../src/routes/mock-read.js";
+import { API_VERSION } from "../src/app.js";
+import { hashOf, mockOfferId, mockWallets, offers, setup } from "./support.js";
 
 test("health reports a live process", async (t) => {
-  const app = await buildApp({ logger: false });
-  t.after(() => app.close());
+  const { app } = await setup(t);
 
   const response = await app.inject({ method: "GET", url: "/health" });
 
@@ -14,8 +13,7 @@ test("health reports a live process", async (t) => {
 });
 
 test("readiness lists no unconfigured dependencies", async (t) => {
-  const app = await buildApp({ logger: false });
-  t.after(() => app.close());
+  const { app } = await setup(t);
 
   const response = await app.inject({ method: "GET", url: "/ready" });
 
@@ -23,37 +21,38 @@ test("readiness lists no unconfigured dependencies", async (t) => {
   assert.deepEqual(response.json(), { dependencies: [], status: "ready" });
 });
 
-test("mock offers are labelled in headers and bodies", async (t) => {
-  const app = await buildApp({ logger: false });
-  t.after(() => app.close());
+test("every successful /api response is labelled mock in headers and bodies", async (t) => {
+  const { app } = await setup(t);
+  const settledTx = (
+    await app.inject({ method: "GET", url: "/api/operations" })
+  ).json().data[0].txHash;
 
-  const response = await app.inject({ method: "GET", url: "/api/offers" });
-
-  assert.equal(response.statusCode, 200);
-  assert.equal(response.headers["x-data-source"], "mock");
-  assert.equal(response.json().meta.source, "mock");
-});
-
-test("every mock list route is labelled in headers and bodies", async (t) => {
-  const app = await buildApp({ logger: false });
-  t.after(() => app.close());
-
-  for (const url of ["/api/operations", "/api/credit-limits"]) {
+  for (const url of [
+    "/api/offers",
+    `/api/offers/${mockOfferId(offers.openAlfaToBeta)}`,
+    `/api/offers/${mockOfferId(offers.openAlfaToBeta)}/events`,
+    "/api/operations",
+    `/api/operations/${settledTx}`,
+    "/api/credit-limits",
+    `/api/credit-limits/${mockWallets.alfa}`,
+    `/api/credit-limits/${mockWallets.alfa}/history`,
+    "/api/deployment",
+    "/api/sync-status",
+  ]) {
     const response = await app.inject({ method: "GET", url });
 
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.headers["x-data-source"], "mock");
-    assert.equal(response.json().meta.source, "mock");
+    assert.equal(response.statusCode, 200, url);
+    assert.equal(response.headers["x-data-source"], "mock", url);
+    assert.equal(response.json().meta.source, "mock", url);
   }
 });
 
-test("error responses on mock routes carry no mock marker", async (t) => {
-  const app = await buildApp({ logger: false });
-  t.after(() => app.close());
+test("error responses carry no mock marker", async (t) => {
+  const { app } = await setup(t);
 
   const missingOffer = await app.inject({
     method: "GET",
-    url: "/api/offers/no-such-offer",
+    url: `/api/offers/${mockOfferId(999)}`,
   });
   const unknownQueryField = await app.inject({
     method: "GET",
@@ -69,13 +68,12 @@ test("error responses on mock routes carry no mock marker", async (t) => {
   }
 });
 
-test("a missing mock offer uses Problem Details", async (t) => {
-  const app = await buildApp({ logger: false });
-  t.after(() => app.close());
+test("a missing offer uses Problem Details", async (t) => {
+  const { app } = await setup(t);
 
   const response = await app.inject({
     method: "GET",
-    url: "/api/offers/no-such-offer",
+    url: `/api/offers/${mockOfferId(999)}`,
   });
 
   assert.equal(response.statusCode, 404);
@@ -84,12 +82,24 @@ test("a missing mock offer uses Problem Details", async (t) => {
     /^application\/problem\+json/,
   );
   assert.equal(response.json().status, 404);
+  assert.equal(
+    response.json().type,
+    "https://api.example.invalid/problems/not-found",
+  );
   assert.equal(typeof response.json().correlationId, "string");
 });
 
+test("unknown routes use Problem Details", async (t) => {
+  const { app } = await setup(t);
+
+  const response = await app.inject({ method: "GET", url: "/api/nothing" });
+
+  assert.equal(response.statusCode, 404);
+  assert.equal(response.json().title, "Recurso não encontrado");
+});
+
 test("unknown query fields are rejected instead of removed", async (t) => {
-  const app = await buildApp({ logger: false });
-  t.after(() => app.close());
+  const { app } = await setup(t);
 
   const response = await app.inject({
     method: "GET",
@@ -101,32 +111,31 @@ test("unknown query fields are rejected instead of removed", async (t) => {
     response.json().type,
     "https://api.example.invalid/problems/validation-error",
   );
+  assert.match(response.json().detail, /must NOT have additional properties/);
 });
 
-test("mock operation details accept only an Ethereum-shaped hash", async (t) => {
-  const app = await buildApp({ logger: false });
-  t.after(() => app.close());
+test("path parameters are validated before lookup", async (t) => {
+  const { app } = await setup(t);
 
-  const valid = await app.inject({
-    method: "GET",
-    url: `/api/operations/${MOCK_TRANSACTION_HASH}`,
-  });
-  const invalid = await app.inject({
-    method: "GET",
-    url: "/api/operations/not-a-hash",
-  });
-
-  assert.equal(valid.statusCode, 200);
-  assert.equal(valid.json().meta.source, "mock");
-  assert.equal(invalid.statusCode, 400);
+  for (const url of [
+    "/api/offers/not-a-uuid",
+    "/api/operations/not-a-hash",
+    "/api/credit-limits/0x123",
+    "/api/transaction-requests/42",
+  ]) {
+    const response = await app.inject({ method: "GET", url });
+    assert.equal(response.statusCode, 400, url);
+  }
 });
 
 test("a malformed body reports a truthful client error, not a server fault", async (t) => {
-  const app = await buildApp({ logger: false });
-  t.after(() => app.close());
+  const { app } = await setup(t);
 
   const response = await app.inject({
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "x-wallet-address": mockWallets.alfa,
+    },
     method: "POST",
     payload: "{ not json",
     url: "/api/offers",
@@ -146,21 +155,55 @@ test("a malformed body reports a truthful client error, not a server fault", asy
   assert.doesNotMatch(response.body, /FST_ERR|Unexpected token|SyntaxError/);
 });
 
-test("the served OpenAPI document keeps the contract version", async (t) => {
-  const app = await buildApp({ logger: false });
-  t.after(() => app.close());
+test("an unexpected failure is a generic 500 without internals", async (t) => {
+  const { app } = await setup(t);
+  app.get("/boom", async () => {
+    throw new Error("segredo interno");
+  });
+
+  const response = await app.inject({ method: "GET", url: "/boom" });
+
+  assert.equal(response.statusCode, 500);
+  assert.equal(
+    response.json().type,
+    "https://api.example.invalid/problems/internal-error",
+  );
+  assert.doesNotMatch(response.body, /segredo interno/);
+});
+
+test("the served OpenAPI document carries the contract version", async (t) => {
+  const { app } = await setup(t);
 
   const response = await app.inject({ method: "GET", url: "/openapi.json" });
 
   assert.equal(response.statusCode, 200);
-  assert.equal(response.json().info.version, "0.1.0");
+  assert.equal(response.json().info.version, API_VERSION);
 });
 
 test("the human-readable documentation is served", async (t) => {
-  const app = await buildApp({ logger: false });
-  t.after(() => app.close());
+  const { app } = await setup(t);
 
   const response = await app.inject({ method: "GET", url: "/docs" });
 
   assert.equal(response.statusCode, 200);
+});
+
+test("hash lookups are case-insensitive", async (t) => {
+  const { app } = await setup(t);
+  const tx: string = (
+    await app.inject({ method: "GET", url: "/api/operations" })
+  ).json().data[0].txHash;
+
+  const response = await app.inject({
+    method: "GET",
+    url: `/api/operations/0x${tx.slice(2).toUpperCase()}`,
+  });
+  const missing = await app.inject({
+    method: "GET",
+    url: `/api/operations/${hashOf("ee")}`,
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().data.txHash, tx);
+  assert.equal(missing.statusCode, 404);
 });

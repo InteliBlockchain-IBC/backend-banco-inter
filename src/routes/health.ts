@@ -22,12 +22,29 @@ export async function registerHealthRoutes(
 ): Promise<void> {
   app.get(
     "/health",
-    { schema: { response: { 200: healthResponse }, tags: ["saúde"] } },
+    {
+      schema: {
+        description: "Liveness: o processo está de pé.",
+        operationId: "getHealth",
+        response: { 200: healthResponse },
+        summary: "Liveness",
+        tags: ["saúde"],
+      },
+    },
     async () => ({ status: "ok" }),
   );
   app.get(
     "/ready",
-    { schema: { response: { 200: readyResponse }, tags: ["saúde"] } },
+    {
+      schema: {
+        description:
+          "Readiness: dependências prontas. Hoje nenhuma; o Postgres entra quando os mocks saírem.",
+        operationId: "getReady",
+        response: { 200: readyResponse },
+        summary: "Readiness",
+        tags: ["saúde"],
+      },
+    },
     async () => ({ dependencies: [], status: "ready" }),
   );
 }
