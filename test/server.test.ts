@@ -58,15 +58,18 @@ async function waitForListening(
 async function waitForExit(
   child: ChildProcess,
   timeoutMs: number,
-): Promise<number | null> {
-  const { promise, resolve, reject } = Promise.withResolvers<number | null>();
+): Promise<{ code: number | null; signal: NodeJS.Signals | null }> {
+  const { promise, resolve, reject } = Promise.withResolvers<{
+    code: number | null;
+    signal: NodeJS.Signals | null;
+  }>();
   const timer = setTimeout(
     () => reject(new Error("o processo não encerrou dentro do prazo")),
     timeoutMs,
   );
-  child.once("exit", (code) => {
+  child.once("exit", (code, signal) => {
     clearTimeout(timer);
-    resolve(code);
+    resolve({ code, signal });
   });
   return promise;
 }
@@ -111,7 +114,12 @@ test("the entry point serves health and exits cleanly on SIGTERM", async () => {
     assert.equal(response.status, 200);
 
     child.kill("SIGTERM");
-    assert.equal(await waitForExit(child, 20_000), 0);
+    const result = await waitForExit(child, 20_000);
+    // No Windows, Node pode relatar SIGTERM como sinal em vez do código 0.
+    assert.ok(
+      result.code === 0 ||
+        (process.platform === "win32" && result.signal === "SIGTERM"),
+    );
   } finally {
     if (child.exitCode === null) {
       child.kill("SIGKILL");
@@ -130,7 +138,7 @@ test("an invalid configuration stops the process before it listens", async () =>
     stderr += chunk.toString("utf8");
   });
 
-  assert.notEqual(await waitForExit(child, 20_000), 0);
+  assert.notEqual((await waitForExit(child, 20_000)).code, 0);
   assert.match(stderr, /PORT deve ser um inteiro decimal/);
 });
 

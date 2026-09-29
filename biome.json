@@ -1,8 +1,23 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
   "files": {
-    "includes": ["**", "!dist", "!node_modules", "!**/.*"]
+    "includes": [
+      "**",
+      "!dist",
+      "!node_modules",
+      "!**/.*",
+      "!docs/openapi.json",
+      "!docs/collection"
+    ]
   },
-  "formatter": { "enabled": true, "indentStyle": "space" },
-  "linter": { "enabled": true, "rules": { "preset": "recommended" } }
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space"
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended"
+    }
+  }
 }

@@ -6,22 +6,32 @@ import Fastify, {
   type FastifyReply,
   type FastifyRequest,
 } from "fastify";
-import { createProblem, problemSchema } from "./problem.js";
+import { MockStore } from "./mock/store.js";
+import {
+  ApiProblem,
+  createProblem,
+  problemSchema,
+  PROBLEM_BASE_URI,
+} from "./problem.js";
+import { registerChainRoutes } from "./routes/chain.js";
+import { registerCreditLimitRoutes } from "./routes/credit-limits.js";
 import { registerHealthRoutes } from "./routes/health.js";
-import { registerMockReadRoutes } from "./routes/mock-read.js";
+import { registerOfferRoutes } from "./routes/offers.js";
+import { registerOperationRoutes } from "./routes/operations.js";
+import { registerTransactionRequestRoutes } from "./routes/transaction-requests.js";
+import { sharedSchemas } from "./schemas.js";
 
-export type NodeEnv = "development" | "production" | "test";
+export const API_VERSION = "0.2.0";
 
-export type BuildAppOptions = Readonly<{
+export type BuildOptions = {
   logger?: boolean;
-  nodeEnv?: NodeEnv;
-}>;
+  nodeEnv?: "development" | "production" | "test";
+  /** Relógio injetável; os testes usam para controlar vencimentos. */
+  now?: () => Date;
+  /** Gerador de ids das intenções; o export de docs usa um determinístico. */
+  newId?: () => string;
+};
 
-/**
- * Cabeçalhos aplicados a toda resposta. A CSP permite `'unsafe-inline'` em script
- * e style porque a interface de documentação em `/docs` depende disso; as rotas
- * de `/api/*` não carregam script algum, então a diretiva não abre superfície ali.
- */
 const securityHeaders = {
   "content-security-policy":
     "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
@@ -32,31 +42,12 @@ const securityHeaders = {
 
 type ProblemSpec = Readonly<{ detail: string; title: string; type: string }>;
 
-const CLIENT_ERROR_FLOOR = 400;
-const SERVER_ERROR = 500;
-
 function applySecurityHeaders(reply: FastifyReply): void {
   for (const [name, value] of Object.entries(securityHeaders)) {
     reply.header(name, value);
   }
 }
 
-const internalError: ProblemSpec = {
-  detail: "O servidor não conseguiu processar a requisição.",
-  title: "Erro interno do servidor",
-  type: "internal-error",
-};
-
-const unclassifiedClientError: ProblemSpec = {
-  detail: "A requisição não pôde ser processada.",
-  title: "Requisição inválida",
-  type: "client-error",
-};
-
-/**
- * Um rótulo por status, para que a resposta diga a causa real. Um corpo grande
- * demais não é falha de validação, e o título anterior afirmava que era.
- */
 function describeProblem(status: number): ProblemSpec {
   if (status === 400) {
     return {
@@ -79,25 +70,27 @@ function describeProblem(status: number): ProblemSpec {
       type: "payload-too-large",
     };
   }
-  if (status >= SERVER_ERROR) {
-    return internalError;
+  if (status >= 500) {
+    return {
+      detail: "O servidor não conseguiu processar a requisição.",
+      title: "Erro interno do servidor",
+      type: "internal-error",
+    };
   }
-  return unclassifiedClientError;
+  return {
+    detail: "A requisição não pôde ser processada.",
+    title: "Requisição inválida",
+    type: "client-error",
+  };
 }
 
 function classifyStatus(error: FastifyError, validation: boolean): number {
-  if (validation) {
-    return CLIENT_ERROR_FLOOR;
-  }
-  const declared = error.statusCode;
-  if (
-    typeof declared === "number" &&
-    declared >= CLIENT_ERROR_FLOOR &&
-    declared < SERVER_ERROR
-  ) {
-    return declared;
-  }
-  return SERVER_ERROR;
+  if (validation) return 400;
+  return typeof error.statusCode === "number" &&
+    error.statusCode >= 400 &&
+    error.statusCode < 500
+    ? error.statusCode
+    : 500;
 }
 
 function sendProblem(
@@ -115,18 +108,44 @@ function sendProblem(
         status,
         spec.title,
         spec.detail,
-        `https://api.example.invalid/problems/${spec.type}`,
+        `${PROBLEM_BASE_URI}${spec.type}`,
       ),
     );
 }
 
-export async function buildApp(
-  options: BuildAppOptions = {},
-): Promise<FastifyInstance> {
-  // Padrão seguro: fora de `development` o stack nunca entra no log.
-  const nodeEnv = options.nodeEnv ?? "production";
-  const logStackTrace = nodeEnv === "development";
+const tags = [
+  {
+    description:
+      "Ofertas confirmadas on-chain e intenções de criar, aceitar, rejeitar e cancelar.",
+    name: "ofertas",
+  },
+  {
+    description:
+      "Ciclo de uma intenção: pending até o frontend informar o hash, depois submitted até o listener confirmar.",
+    name: "intenções",
+  },
+  {
+    description: "Histórico de liquidações DvP (comprovantes).",
+    name: "operações",
+  },
+  {
+    description: "Limites de crédito por carteira e seu histórico.",
+    name: "limites",
+  },
+  { description: "Contratos implantados e estado do listener.", name: "rede" },
+  { description: "Liveness e readiness do processo.", name: "saúde" },
+  {
+    description: "Contrato OpenAPI servido pela aplicação.",
+    name: "documentação",
+  },
+];
 
+export async function buildApp(
+  options: BuildOptions = {},
+): Promise<FastifyInstance> {
+  const now = options.now ?? (() => new Date());
+  const store = new MockStore(now, options.newId);
+  const logStackTrace = options.nodeEnv === "development";
   const app = Fastify({
     ajv: { customOptions: { removeAdditional: false } },
     bodyLimit: 16 * 1024,
@@ -141,8 +160,6 @@ export async function buildApp(
         { code: error.code, correlationId: request.id, statusCode: status },
         "requisição rejeitada antes do handler",
       );
-      // Este caminho não passa pelo hook `onSend`; sem a chamada explícita, a
-      // resposta sairia sem os cabeçalhos de segurança que o resto do serviço usa.
       applySecurityHeaders(reply);
       return sendProblem(reply, request.id, status);
     },
@@ -163,7 +180,6 @@ export async function buildApp(
                 return {
                   id: request.id,
                   method: request.method,
-                  // A querystring pode carregar segredo; o log guarda só o caminho.
                   url: request.url.split("?")[0] ?? request.url,
                 };
               },
@@ -176,24 +192,37 @@ export async function buildApp(
     applySecurityHeaders(reply);
   });
 
-  app.setErrorHandler((error: FastifyError, request, reply) => {
+  for (const schema of sharedSchemas) app.addSchema(schema);
+
+  app.setErrorHandler((error: FastifyError | ApiProblem, request, reply) => {
+    if (error instanceof ApiProblem) {
+      request.log.warn({ problem: error.slug }, "requisição recusada");
+      return reply
+        .code(error.status)
+        .type("application/problem+json")
+        .send(
+          createProblem(
+            request.id,
+            error.status,
+            error.title,
+            error.message,
+            `${PROBLEM_BASE_URI}${error.slug}`,
+          ),
+        );
+    }
+
     const validationError =
       "validation" in error && error.validation !== undefined;
     const status = classifyStatus(error, validationError);
-    const clientError = status < SERVER_ERROR;
-
+    const clientError = status < 500;
     const fields: Record<string, unknown> = {
       code: error.code,
       correlationId: request.id,
       statusCode: status,
       type: error.name,
     };
-    if (logStackTrace && error.stack !== undefined) {
-      fields.stack = error.stack;
-    }
-    // 4xx é erro do cliente e vai para `warn`; `error` fica reservado a 5xx.
+    if (logStackTrace && error.stack !== undefined) fields.stack = error.stack;
     request.log[clientError ? "warn" : "error"](fields, "falha na requisição");
-
     return sendProblem(reply, request.id, status);
   });
 
@@ -203,21 +232,40 @@ export async function buildApp(
 
   await app.register(swagger, {
     openapi: {
-      info: { title: "API do Backend Banco Inter", version: "0.1.0" },
+      info: {
+        description:
+          "API da PoC de crédito interfinanceiro overnight (Banco Inter x Inteli Blockchain). Nesta versão todas as respostas de /api/* são fictícias (x-data-source: mock). A API nunca assina transações: ela registra intenções e devolve contractCall para a carteira do operador. Guia completo em docs/api.md.",
+        license: { name: "MIT" },
+        title: "API do Backend Banco Inter",
+        version: API_VERSION,
+      },
       openapi: "3.0.3",
+      servers: [{ description: "Local", url: "http://127.0.0.1:3000" }],
+      tags,
+    },
+    refResolver: {
+      buildLocalReference: (json, _baseUri, _fragment, index) =>
+        typeof json.$id === "string" ? json.$id : `def-${index}`,
     },
   });
   await app.register(swaggerUi, { routePrefix: "/docs" });
   await app.register(registerHealthRoutes);
-  await app.register(registerMockReadRoutes);
+  await app.register(registerChainRoutes, { store });
+  await app.register(registerOfferRoutes, { store });
+  await app.register(registerTransactionRequestRoutes, { store });
+  await app.register(registerOperationRoutes, { store });
+  await app.register(registerCreditLimitRoutes, { store });
   app.get(
     "/openapi.json",
     {
       schema: {
+        description: "Documento OpenAPI 3.0 desta versão.",
+        operationId: "getOpenApi",
         response: {
           200: { additionalProperties: true, type: "object" },
           500: problemSchema,
         },
+        summary: "Contrato OpenAPI",
         tags: ["documentação"],
       },
     },

@@ -12,7 +12,7 @@ A PoC elimina essa janela. O contrato inteligente valida o limite e executa a tr
 
 | Camada | Escolha |
 |---|---|
-| Runtime | Node.js 24 LTS — `.nvmrc` fixa `24`; Active LTS até 2026-10-20, Maintenance LTS até 2028-04-30 |
+| Runtime | Node.js 24 LTS |
 | Linguagem | TypeScript, modo estrito |
 | HTTP | Fastify 5 |
 | Banco | PostgreSQL |
@@ -24,38 +24,15 @@ Sem ORM: a modelagem exige diagrama entidade-relacionamento explícito e migrati
 
 ## Diagrama
 
-Duas vistas, cada uma respondendo a uma pergunta diferente. A estrutura, com os componentes e quem fala com quem, fica no [README](../README.md#arquitetura); lá o bloco Web2 distingue o que existe do que ainda é alvo. A ordem do caminho de uma operação fica aqui, porque é a ordem que o orçamento de latência mede.
+O diagrama de componentes fica no [README](../README.md#arquitetura), fonte única. Esta seção descreve o que ele mostra.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor OP as Operador
-    participant FE as Mesa de Operações
-    participant API as API
-    participant WA as Carteira
-    participant DVP as Contrato DvP
-    participant RPC as RPC provider
-    participant LIS as Listener
-    participant DB as PostgreSQL
+O caminho de uma operação, do clique à tela:
 
-    OP->>FE: aceita a oferta
-    FE->>API: registra a intenção
-    API-->>FE: valor em wei, taxa em basis points, endereço do contrato
-    FE->>WA: monta a chamada
-    OP->>WA: confirma a assinatura
-    WA->>RPC: transmite a transação
-    RPC->>DVP: inclui em bloco, cerca de 12s
-    DVP->>DVP: valida o limite e executa o swap atômico
-    DVP-->>RPC: emite o evento
-    Note over LIS,RPC: no ciclo seguinte de polling
-    LIS->>RPC: getLogs do intervalo pendente
-    RPC-->>LIS: logs do contrato
-    LIS->>DB: UPSERT dos eventos, depois avança o cursor
-    FE->>API: consulta em intervalo fixo
-    API-->>FE: estado atualizado
-```
-
-Nenhuma seta é empurrada pelo servidor. O listener e o frontend descobrem a mudança no ciclo seguinte, e é isso que o orçamento de latência cobra.
+1. O frontend registra a intenção na API, que grava a intenção como `pending` e devolve os argumentos normalizados (valor em centavos de BRLt, taxa em pontos-base do CDI, endereço do contrato). O contrato de cada rota está em [`api.md`](api.md).
+2. A carteira do operador monta e assina a chamada ao contrato. O backend não participa deste passo.
+3. O contrato valida o limite e executa o swap atômico na mesma transação.
+4. O contrato emite o evento. No ciclo seguinte de polling, o listener lê os logs pendentes e atualiza o Postgres.
+5. O frontend consulta a API periodicamente e exibe o estado indexado.
 
 ## Componentes
 
@@ -97,28 +74,21 @@ Alternativa descartada: backend com chave custodial (relayer). Seria mais fácil
 
 Consequência: o backend é fonte de verdade off-chain e indexador, nunca executor.
 
-### O listener é um cursor, e o gatilho é polling
+### O listener é um cursor, não um watcher
 
-Um watcher (`watchContractEvent`) só entrega o que acontece enquanto está ligado. Qualquer parada, seja deploy, restart ou oscilação de rede, perde de forma definitiva os eventos daquele intervalo.
+Um watcher (`watchContractEvent`) só entrega o que acontece enquanto está ligado. Qualquer parada — deploy, restart, oscilação de rede — perde os eventos daquele intervalo de forma definitiva.
 
-O listener guarda no Postgres o último bloco processado e, a cada ciclo, busca os logs do intervalo pendente. Se o processo cair em qualquer ponto, ele recomeça do último bloco processado.
+O listener guarda no Postgres o último bloco processado e, a cada ciclo, busca os logs do intervalo pendente:
 
 ```
-cursor = lê o cursor do banco
+ultimo = lê cursor do banco
 atual  = client.getBlockNumber()
-enquanto cursor < atual:
-  fatia  = menor entre o teto por chamada e o que falta até atual
-  logs   = client.getLogs({ address, fromBlock: cursor + 1, toBlock: cursor + fatia })
-  grava os logs com UPSERT
-  cursor = cursor + fatia
-escreve o cursor e a janela de hashes
+logs   = client.getLogs({ address, fromBlock: ultimo + 1, toBlock: atual })
+grava logs com UPSERT
+escreve cursor = atual
 ```
 
-O laço não é decorativo. O provedor público recusa faixa larga de blocos, então uma parada longa precisa de várias chamadas até alcançar o cabeçalho da cadeia, e o cursor só avança depois de a gravação ter passado.
-
-Sobre o gatilho, o listener pergunta ao provedor a cada ciclo e não abre conexão persistente. O argumento que sustentava o push era a latência, e ele é mais fraco do que parecia: o push entrega assim que o evento aparece, mas não recupera o que passou enquanto o canal esteve fora. A conexão pode continuar aberta e parar de entregar, sem erro, e todo evento daquele intervalo se perde. O cursor é obrigatório de qualquer forma, porque é ele que garante que nada se perde. O push economizaria o intervalo de um ciclo, ao preço de uma segunda forma de falha para operar e observar. Polling tem uma forma de falha só, e ela é visível: o cursor para de avançar.
-
-O gatilho fica isolado em uma função, e o restante do listener não sabe como ele é disparado. Se o polling se mostrar insuficiente na Sepolia, trocar por WebSocket sobre o mesmo cursor é uma alteração de uma linha naquele ponto.
+Se o processo cair em qualquer ponto, ele recomeça do último bloco confirmado.
 
 ### A gravação é idempotente
 
@@ -126,33 +96,31 @@ O gatilho fica isolado em uma função, e o restante do listener não sabe como 
 
 Efeito colateral relevante: idempotência é também o que permite rodar mais de uma instância do listener em paralelo, caso um dia seja preciso redundância.
 
-### Proteção contra reorg
+### Polling como gatilho, cursor como garantia
 
-A Sepolia reorganiza os últimos blocos de vez em quando, então o processamento não pode assumir que o que foi gravado hoje continua na cadeia amanhã.
+O listener consulta o provedor em intervalos fixos e, em cada ciclo, busca os logs entre o último bloco confirmado e o bloco atual. O cursor só avança depois da gravação idempotente; uma parada é recuperada no ciclo seguinte.
 
-A proteção usual seria processar com atraso de alguns blocos. Com o bloco da Sepolia medido em 12s, dois blocos de atraso levam o total a cerca de 39s contra os 30s do RNF02, e nenhum atraso que caiba nesse orçamento compra garantia: a finalização da prova de participação leva cerca de 12,8 minutos.
+WebSocket foi descartado porque ainda exigiria o cursor para recuperar os eventos perdidos enquanto o canal estivesse fora. Polling deixa uma única forma de falha observável: o cursor deixa de avançar.
 
-A escolha é detecção com reparo, que não atrasa o caminho feliz. A cada ciclo o listener relê uma janela de blocos, compara o hash de cada altura com o que guardou e, quando um hash deixa de casar, marca os eventos daquela altura como removidos e reconstrói a projeção afetada. A releitura do recibo canônico decide o desfecho de cada transação: se ela continua viva em outro bloco da cadeia vencedora, altura, índice e hash são atualizados; se não continua, a operação vai para `orphaned`.
+O gatilho do ciclo fica isolado. Se o polling não sustentar o volume ou o SLO medido, a troca para WebSocket sobre o mesmo cursor não afeta a projeção dos eventos.
 
-O que esse mecanismo não faz é impedir que um estado errado apareça na tela entre o reorg e o ciclo seguinte. Evitar isso exigiria o atraso que não cabe no orçamento.
+### Sem proteção contra reorg
 
-`block_number` e `block_hash` são registrados em cada operação. O número sozinho não detecta reorg, porque a altura permanece a mesma e o conteúdo muda.
+A Sepolia pode reorganizar os últimos blocos. A proteção usual é processar com atraso de alguns blocos, ao custo de ~24s de latência adicional — o que estouraria o orçamento do RNF02.
+
+Mitigação adotada: o `block_number` é registrado em cada operação, permitindo auditoria posterior. O risco é aceito e documentado.
 
 ## Orçamento de latência (RNF02: 30 segundos)
-
-O orçamento do caminho feliz, com o transporte aceito:
 
 | Etapa | Pior caso |
 |---|---|
 | Transação incluída em bloco (Sepolia) | ~12s |
-| Listener lê o intervalo pendente (ciclo seguinte de polling) | até o intervalo do ciclo, sem valor declarado (`P10` na arquitetura do backend) |
+| Listener lê o intervalo pendente (polling) | até o intervalo do ciclo |
 | Gravação no Postgres | ~ms |
-| Frontend percebe a mudança (consulta à API em intervalo fixo) | 3s, premissa deste documento |
-| Total | ~15s mais o intervalo do ciclo |
+| Frontend percebe a mudança (polling 3s) | 3s |
+| **Total** | **~15s** |
 
-O total não fecha sem o intervalo do ciclo, e ele é o único termo em aberto: o tempo de bloco da Sepolia não está sob controle do backend, a gravação é da ordem de milissegundos e os 3s do frontend são premissa deste documento, não medição. Com um ciclo de até 15 segundos o total ainda cabe nos 30 segundos do RNF02; acima disso, não cabe. Fixar o intervalo é decisão da equipe do backend, e é o que torna este orçamento decidível.
-
-O requisito segue sem definição formal de início e fim. "Confirmação visível até 30 segundos após aceite" não diz se o relógio começa no envio da transação, na inclusão em bloco ou no aceite, nem se termina quando o estado chega à tela ou quando ele deixa de ser revertível. A leitura adotada é a primeira: o requisito mede a chegada do estado à tela. A segunda medida, a confirmação, é publicada como número separado e não é o que esta tabela mede.
+A folga é de cerca de 15 segundos. Quase todo o orçamento é consumido pelo tempo de bloco da Sepolia, que não está sob controle do backend.
 
 ## Riscos conhecidos
 
@@ -162,9 +130,7 @@ O requisito segue sem definição formal de início e fim. "Confirmação visív
 
 **Limite de crédito em duas fontes.** O contrato valida um limite on-chain; o Postgres guarda outro para exibição. Divergência faz o aceite falhar sem explicação na interface. Exige definição, junto ao time de contratos, de quem sincroniza e com que frequência.
 
-### Lista de eventos e ABI seguem pendentes de terceiro
-
-Este documento descreve o listener e a projeção de dados como se os eventos e a ABI já existissem. Eles não existem. A máquina de estados e a interface preliminar, com funções, eventos, erros, identificadores e unidades, têm prazo esperado de 2026-09-20, e a ABI final versionada, de 2026-10-11. As duas seguem `Blocked`, e quem deve fechá-las é o time de contratos: o backend é consumidor. Enquanto isso não acontecer, o listener, o diagrama de dados e a decisão sobre nomes, unidades e escala descrevem uma interface que ninguém acordou, e nada aqui deve ser lido como contrato fechado com o time de contratos.
+**Polling interrompido.** Se o ciclo parar, a chain avança enquanto o banco congela. Mitigação: expor o timestamp da última sincronização e alertar quando ele ultrapassar o limite operacional.
 
 ## Caminho para produção
 
@@ -174,7 +140,7 @@ As decisões acima são adequadas a uma PoC em testnet pública. Um sistema em p
 
 **Rede permissionada, não Sepolia.** Redes com finalização imediata (Besu/QBFT e similares) não sofrem reorg, o que elimina uma classe inteira de preocupações do indexador. A escolha da rede é objeto do benchmark entregue em paralelo a este repositório.
 
-**Conexão mais estável, mesmo desenho.** O gatilho por polling sobre cursor é o desenho adotado; com nó dedicado ele deixa de sofrer o teto de chamadas e as quedas típicas de um RPC compartilhado. O cursor continua obrigatório, e nenhum mecanismo de push dispensa ele: nenhum push sobrevive a um deploy sem perder eventos.
+**Conexão mais estável, mesmo desenho.** O cursor permanece obrigatório com nó dedicado; polling é o transporte atual e pode ser reavaliado com métricas de volume e latência.
 
 **Listener redundante.** Mais de uma instância, viável sem alteração de código graças à idempotência da gravação.
 

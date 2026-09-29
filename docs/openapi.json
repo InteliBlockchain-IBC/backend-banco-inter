@@ -1,0 +1,2503 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "description": "API da PoC de crédito interfinanceiro overnight (Banco Inter x Inteli Blockchain). Nesta versão todas as respostas de /api/* são fictícias (x-data-source: mock). A API nunca assina transações: ela registra intenções e devolve contractCall para a carteira do operador. Guia completo em docs/api.md.",
+    "license": {
+      "name": "MIT"
+    },
+    "title": "API do Backend Banco Inter",
+    "version": "0.2.0"
+  },
+  "components": {
+    "schemas": {
+      "Problem": {
+        "additionalProperties": false,
+        "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+        "properties": {
+          "correlationId": {
+            "description": "Id da requisição, igual ao registrado no log do servidor.",
+            "type": "string"
+          },
+          "detail": {
+            "description": "Explicação legível do erro.",
+            "type": "string"
+          },
+          "status": {
+            "description": "Código HTTP repetido no corpo.",
+            "type": "integer"
+          },
+          "title": {
+            "description": "Resumo curto e estável do erro.",
+            "type": "string"
+          },
+          "type": {
+            "description": "URI estável do tipo de erro. Os tipos possíveis estão em docs/api.md; todos começam com https://api.example.invalid/problems/.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "correlationId"
+        ],
+        "type": "object"
+      },
+      "Party": {
+        "additionalProperties": false,
+        "description": "Parte de uma oferta: carteira on-chain e, se houver vínculo cadastrado, a instituição.",
+        "properties": {
+          "institution": {
+            "additionalProperties": false,
+            "description": "Banco dono da carteira. Dado apenas off-chain.",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "description": "Id interno da instituição.",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                "type": "string"
+              },
+              "name": {
+                "description": "Nome de exibição.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "wallet": {
+            "description": "Carteira em hexadecimal minúsculo.",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wallet",
+          "institution"
+        ],
+        "type": "object"
+      },
+      "Offer": {
+        "additionalProperties": false,
+        "description": "Oferta direcionada confirmada on-chain (tabela offers + settlements).",
+        "properties": {
+          "amountCents": {
+            "description": "Valor emprestado. Centavos de BRLt como string decimal (uint256).",
+            "pattern": "^(0|[1-9][0-9]{0,29})$",
+            "type": "string"
+          },
+          "borrower": {
+            "$ref": "#/components/schemas/Party"
+          },
+          "chainId": {
+            "description": "Id da rede (11155111 = Sepolia).",
+            "type": "integer"
+          },
+          "contractAddress": {
+            "description": "Contrato CreditInterbankOffer.",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "type": "string"
+          },
+          "createTxHash": {
+            "description": "Transação que criou a oferta.",
+            "pattern": "^0x[0-9a-fA-F]{64}$",
+            "type": "string"
+          },
+          "createdAt": {
+            "description": "Horário do bloco de criação.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBlock": {
+            "type": "integer"
+          },
+          "expiresAt": {
+            "description": "Fim da janela para aceitar, rejeitar ou cancelar.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "Id da oferta na API.",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "type": "string"
+          },
+          "lender": {
+            "$ref": "#/components/schemas/Party"
+          },
+          "onchainOfferId": {
+            "description": "offerId do contrato (uint256 como string).",
+            "pattern": "^[1-9][0-9]{0,29}$",
+            "type": "string"
+          },
+          "onchainStatusCode": {
+            "description": "Status persistido no contrato: 0 Offered, 2 Settled, 3 Cancelled, 4 Expired, 5 Rejected.",
+            "enum": [
+              0,
+              2,
+              3,
+              4,
+              5
+            ],
+            "type": "integer"
+          },
+          "rateCdiBps": {
+            "description": "Percentual do CDI em pontos-base (10500 = 105% do CDI).",
+            "type": "integer"
+          },
+          "settlement": {
+            "additionalProperties": false,
+            "description": "Liquidação DvP; null enquanto a oferta não foi liquidada.",
+            "nullable": true,
+            "properties": {
+              "blockNumber": {
+                "type": "integer"
+              },
+              "positionTokenId": {
+                "description": "tokenId do NFT de posição (igual a onchainOfferId).",
+                "type": "string"
+              },
+              "settledAt": {
+                "description": "Horário do bloco da liquidação.",
+                "format": "date-time",
+                "type": "string"
+              },
+              "txHash": {
+                "description": "Transação de aceite e liquidação.",
+                "pattern": "^0x[0-9a-fA-F]{64}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "txHash",
+              "blockNumber",
+              "positionTokenId",
+              "settledAt"
+            ],
+            "type": "object"
+          },
+          "status": {
+            "description": "Status apresentado. Uma oferta offered cujo expiresAt passou aparece como expired, mesmo sem OfferExpired on-chain (compare com onchainStatusCode).",
+            "enum": [
+              "offered",
+              "settled",
+              "cancelled",
+              "expired",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "termDays": {
+            "description": "Prazo do empréstimo em dias.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "onchainOfferId",
+          "chainId",
+          "contractAddress",
+          "lender",
+          "borrower",
+          "amountCents",
+          "rateCdiBps",
+          "termDays",
+          "status",
+          "onchainStatusCode",
+          "createdAt",
+          "expiresAt",
+          "createTxHash",
+          "createdBlock",
+          "settlement"
+        ],
+        "type": "object"
+      },
+      "ChainEvent": {
+        "additionalProperties": false,
+        "description": "Log do contrato indexado pelo listener (tabela chain_events).",
+        "properties": {
+          "args": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Argumentos do evento como vieram do ABI; inteiros e endereços como string.",
+            "type": "object"
+          },
+          "blockHash": {
+            "description": "Hash do bloco.",
+            "pattern": "^0x[0-9a-fA-F]{64}$",
+            "type": "string"
+          },
+          "blockNumber": {
+            "type": "integer"
+          },
+          "blockTimestamp": {
+            "description": "Horário do bloco.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "eventName": {
+            "enum": [
+              "InstitutionRegistered",
+              "InstitutionRevoked",
+              "CreditLimitUpdated",
+              "OfferCreated",
+              "OfferAccepted",
+              "OfferSettled",
+              "OfferRejected",
+              "OfferCancelled",
+              "OfferExpired"
+            ],
+            "type": "string"
+          },
+          "logIndex": {
+            "type": "integer"
+          },
+          "offerId": {
+            "description": "Oferta relacionada; null em eventos de cadastro e limite.",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "type": "string",
+            "nullable": true
+          },
+          "txHash": {
+            "description": "Transação que emitiu o log.",
+            "pattern": "^0x[0-9a-fA-F]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "eventName",
+          "txHash",
+          "logIndex",
+          "blockNumber",
+          "blockHash",
+          "blockTimestamp",
+          "offerId",
+          "args"
+        ],
+        "type": "object"
+      },
+      "Operation": {
+        "additionalProperties": false,
+        "description": "Operação liquidada: o comprovante com partes, valor, taxa, horário e hash (RNF03).",
+        "properties": {
+          "amountCents": {
+            "description": "Valor liquidado. Centavos de BRLt como string decimal (uint256).",
+            "pattern": "^(0|[1-9][0-9]{0,29})$",
+            "type": "string"
+          },
+          "blockHash": {
+            "description": "Hash do bloco da liquidação.",
+            "pattern": "^0x[0-9a-fA-F]{64}$",
+            "type": "string"
+          },
+          "blockNumber": {
+            "type": "integer"
+          },
+          "borrower": {
+            "$ref": "#/components/schemas/Party"
+          },
+          "chainId": {
+            "type": "integer"
+          },
+          "contractAddress": {
+            "description": "Contrato CreditInterbankOffer.",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "type": "string"
+          },
+          "explorerUrl": {
+            "description": "Link da transação no Etherscan da Sepolia.",
+            "type": "string"
+          },
+          "lender": {
+            "$ref": "#/components/schemas/Party"
+          },
+          "offerId": {
+            "description": "Oferta liquidada.",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "type": "string"
+          },
+          "onchainOfferId": {
+            "type": "string"
+          },
+          "positionTokenId": {
+            "description": "tokenId do NFT CDIP emitido ao ofertante.",
+            "type": "string"
+          },
+          "rateCdiBps": {
+            "type": "integer"
+          },
+          "settledAt": {
+            "description": "Horário do bloco da liquidação.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "termDays": {
+            "type": "integer"
+          },
+          "txHash": {
+            "description": "Transação de aceite e liquidação.",
+            "pattern": "^0x[0-9a-fA-F]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "txHash",
+          "offerId",
+          "onchainOfferId",
+          "chainId",
+          "contractAddress",
+          "lender",
+          "borrower",
+          "amountCents",
+          "rateCdiBps",
+          "termDays",
+          "positionTokenId",
+          "blockNumber",
+          "blockHash",
+          "settledAt",
+          "explorerUrl"
+        ],
+        "type": "object"
+      },
+      "CreditLimit": {
+        "additionalProperties": false,
+        "description": "Limite disponível de uma carteira, espelho de availableLimit() (tabela contract_wallet_state).",
+        "properties": {
+          "availableLimitCents": {
+            "description": "Limite disponível para tomar. Centavos de BRLt como string decimal (uint256).",
+            "pattern": "^(0|[1-9][0-9]{0,29})$",
+            "type": "string"
+          },
+          "institution": {
+            "additionalProperties": false,
+            "description": "Banco dono da carteira. Dado apenas off-chain.",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "description": "Id interno da instituição.",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                "type": "string"
+              },
+              "name": {
+                "description": "Nome de exibição.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "isRegistered": {
+            "description": "Carteira autorizada no contrato (INSTITUTION_ROLE).",
+            "type": "boolean"
+          },
+          "observedAt": {
+            "description": "Quando o listener observou este valor.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "observedBlock": {
+            "type": "integer"
+          },
+          "wallet": {
+            "description": "Carteira em hexadecimal minúsculo.",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wallet",
+          "institution",
+          "isRegistered",
+          "availableLimitCents",
+          "observedBlock",
+          "observedAt"
+        ],
+        "type": "object"
+      },
+      "CreditLimitChange": {
+        "additionalProperties": false,
+        "description": "Mudança de limite: ajuste do admin (CreditLimitUpdated) ou débito da liquidação (OfferSettled).",
+        "properties": {
+          "blockTimestamp": {
+            "description": "Horário do bloco.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "changeKind": {
+            "enum": [
+              "admin_update",
+              "settlement"
+            ],
+            "type": "string"
+          },
+          "logIndex": {
+            "type": "integer"
+          },
+          "newLimitCents": {
+            "description": "Limite depois da mudança. Centavos de BRLt como string decimal (uint256).",
+            "pattern": "^(0|[1-9][0-9]{0,29})$",
+            "type": "string"
+          },
+          "offerId": {
+            "description": "Oferta que consumiu o limite; null em admin_update.",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "type": "string",
+            "nullable": true
+          },
+          "previousLimitCents": {
+            "description": "Limite antes da mudança. Centavos de BRLt como string decimal (uint256).",
+            "pattern": "^(0|[1-9][0-9]{0,29})$",
+            "type": "string"
+          },
+          "txHash": {
+            "description": "Transação de origem.",
+            "pattern": "^0x[0-9a-fA-F]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "changeKind",
+          "previousLimitCents",
+          "newLimitCents",
+          "offerId",
+          "txHash",
+          "logIndex",
+          "blockTimestamp"
+        ],
+        "type": "object"
+      },
+      "TransactionRequest": {
+        "additionalProperties": false,
+        "description": "Intenção registrada pela API antes da assinatura. O frontend usa contractCall para montar a transação na carteira e depois informa o hash.",
+        "properties": {
+          "action": {
+            "enum": [
+              "create_offer",
+              "accept_offer",
+              "reject_offer",
+              "cancel_offer"
+            ],
+            "type": "string"
+          },
+          "contractCall": {
+            "additionalProperties": false,
+            "description": "Chamada pronta para writeContract (viem/wagmi).",
+            "properties": {
+              "args": {
+                "description": "Argumentos na ordem do ABI. uint256 como string decimal: converta com BigInt().",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "chainId": {
+                "type": "integer"
+              },
+              "contractAddress": {
+                "description": "Contrato a chamar.",
+                "pattern": "^0x[0-9a-fA-F]{40}$",
+                "type": "string"
+              },
+              "functionName": {
+                "enum": [
+                  "createOffer",
+                  "acceptOffer",
+                  "rejectOffer",
+                  "cancelOffer"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "chainId",
+              "contractAddress",
+              "functionName",
+              "args"
+            ],
+            "type": "object"
+          },
+          "createdAt": {
+            "description": "Criação da intenção.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "description": "Prazo para informar o hash; depois disso fica expired.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "failureCode": {
+            "description": "Motivo da falha informado pelo listener; null se não falhou.",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "description": "Id da intenção.",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "type": "string"
+          },
+          "offerId": {
+            "description": "Oferta alvo; null em create_offer.",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "type": "string",
+            "nullable": true
+          },
+          "params": {
+            "additionalProperties": false,
+            "description": "Parâmetros de create_offer; null nas outras ações.",
+            "nullable": true,
+            "properties": {
+              "amountCents": {
+                "description": "Valor ofertado. Centavos de BRLt como string decimal (uint256).",
+                "pattern": "^(0|[1-9][0-9]{0,29})$",
+                "type": "string"
+              },
+              "borrowerWallet": {
+                "description": "Tomador.",
+                "pattern": "^0x[0-9a-fA-F]{40}$",
+                "type": "string"
+              },
+              "rateCdiBps": {
+                "type": "integer"
+              },
+              "termDays": {
+                "type": "integer"
+              },
+              "validitySeconds": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "borrowerWallet",
+              "amountCents",
+              "rateCdiBps",
+              "termDays",
+              "validitySeconds"
+            ],
+            "type": "object"
+          },
+          "requesterWallet": {
+            "description": "Carteira que vai assinar.",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "type": "string"
+          },
+          "status": {
+            "description": "pending: aguardando hash. submitted: hash recebido. confirmed/failed: definidos pelo listener. expired: hash não chegou a tempo.",
+            "enum": [
+              "pending",
+              "submitted",
+              "confirmed",
+              "failed",
+              "expired"
+            ],
+            "type": "string"
+          },
+          "submittedAt": {
+            "description": "Quando o hash foi informado.",
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "txHash": {
+            "description": "Hash informado pelo frontend.",
+            "pattern": "^0x[0-9a-fA-F]{64}$",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "status",
+          "requesterWallet",
+          "offerId",
+          "params",
+          "txHash",
+          "createdAt",
+          "expiresAt",
+          "submittedAt",
+          "failureCode",
+          "contractCall"
+        ],
+        "type": "object"
+      },
+      "Deployment": {
+        "additionalProperties": false,
+        "description": "Contratos implantados que a API indexa.",
+        "properties": {
+          "brlTokenAddress": {
+            "description": "ERC-20 BRLt (2 casas decimais).",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "type": "string"
+          },
+          "chainId": {
+            "type": "integer"
+          },
+          "contractAddress": {
+            "description": "CreditInterbankOffer.",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "type": "string"
+          },
+          "explorerUrl": {
+            "type": "string"
+          },
+          "network": {
+            "enum": [
+              "sepolia"
+            ],
+            "type": "string"
+          },
+          "positionTokenAddress": {
+            "description": "ERC-721 CDIP (posição de crédito).",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "type": "string"
+          },
+          "startBlock": {
+            "description": "Bloco a partir do qual o listener indexa.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "chainId",
+          "network",
+          "contractAddress",
+          "brlTokenAddress",
+          "positionTokenAddress",
+          "startBlock",
+          "explorerUrl"
+        ],
+        "type": "object"
+      },
+      "SyncStatus": {
+        "additionalProperties": false,
+        "description": "Cursor do listener. Use stale para avisar na interface que os dados podem estar atrasados.",
+        "properties": {
+          "chainId": {
+            "type": "integer"
+          },
+          "contractAddress": {
+            "description": "Contrato sincronizado.",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "type": "string"
+          },
+          "lagSeconds": {
+            "description": "Segundos desde a última sincronização.",
+            "type": "integer"
+          },
+          "lastProcessedBlock": {
+            "type": "integer"
+          },
+          "lastProcessedBlockHash": {
+            "description": "Hash do último bloco processado.",
+            "pattern": "^0x[0-9a-fA-F]{64}$",
+            "type": "string"
+          },
+          "lastSyncedAt": {
+            "description": "Última sincronização.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "stale": {
+            "description": "true quando lagSeconds passa de 60.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "chainId",
+          "contractAddress",
+          "lastProcessedBlock",
+          "lastProcessedBlockHash",
+          "lastSyncedAt",
+          "lagSeconds",
+          "stale"
+        ],
+        "type": "object"
+      },
+      "Meta": {
+        "additionalProperties": false,
+        "description": "Metadados. source=mock indica dado fictício.",
+        "properties": {
+          "source": {
+            "enum": [
+              "mock"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "type": "object"
+      },
+      "ListMeta": {
+        "additionalProperties": false,
+        "description": "Metadados de lista paginada.",
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "mock"
+            ],
+            "type": "string"
+          },
+          "total": {
+            "description": "Total de itens com os filtros aplicados.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Liveness",
+        "tags": [
+          "saúde"
+        ],
+        "description": "Liveness: o processo está de pé.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+                  "properties": {
+                    "correlationId": {
+                      "description": "Id da requisição, igual ao registrado no log do servidor.",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "description": "Explicação legível do erro.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Código HTTP repetido no corpo.",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "description": "Resumo curto e estável do erro.",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "URI estável do tipo de erro. Os tipos possíveis estão em docs/api.md; todos começam com https://api.example.invalid/problems/.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "correlationId"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "getReady",
+        "summary": "Readiness",
+        "tags": [
+          "saúde"
+        ],
+        "description": "Readiness: dependências prontas. Hoje nenhuma; o Postgres entra quando os mocks saírem.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "dependencies": {
+                      "items": {},
+                      "type": "array"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ready"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "dependencies"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+                  "properties": {
+                    "correlationId": {
+                      "description": "Id da requisição, igual ao registrado no log do servidor.",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "description": "Explicação legível do erro.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Código HTTP repetido no corpo.",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "description": "Resumo curto e estável do erro.",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "URI estável do tipo de erro. Os tipos possíveis estão em docs/api.md; todos começam com https://api.example.invalid/problems/.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "correlationId"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/deployment": {
+      "get": {
+        "operationId": "getDeployment",
+        "summary": "Contratos implantados",
+        "tags": [
+          "rede"
+        ],
+        "description": "Rede e endereços dos contratos. O frontend usa para montar as chamadas e checar se a carteira está na rede certa.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Deployment"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sync-status": {
+      "get": {
+        "operationId": "getSyncStatus",
+        "summary": "Estado da sincronização",
+        "tags": [
+          "rede"
+        ],
+        "description": "Último bloco processado pelo listener e atraso em segundos. Quando stale for true, a interface deve avisar que os dados podem estar desatualizados.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SyncStatus"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/offers": {
+      "get": {
+        "operationId": "listOffers",
+        "summary": "Listar ofertas",
+        "tags": [
+          "ofertas"
+        ],
+        "description": "Ofertas confirmadas on-chain, mais recentes primeiro. Use wallet + role para a mesa de um banco e status=offered para as ofertas abertas.",
+        "parameters": [
+          {
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "description": "Itens por página (1 a 100)."
+          },
+          {
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "description": "Itens a pular."
+          },
+          {
+            "schema": {
+              "default": "any",
+              "enum": [
+                "lender",
+                "borrower",
+                "any"
+              ],
+              "type": "string"
+            },
+            "in": "query",
+            "name": "role",
+            "required": false,
+            "description": "Com wallet: lender (ofertadas por ela), borrower (dirigidas a ela) ou any."
+          },
+          {
+            "schema": {
+              "enum": [
+                "offered",
+                "settled",
+                "cancelled",
+                "expired",
+                "rejected"
+              ],
+              "type": "string"
+            },
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "description": "Filtra pelo status apresentado."
+          },
+          {
+            "schema": {
+              "pattern": "^0x[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "wallet",
+            "required": false,
+            "description": "Só ofertas em que a carteira é parte."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/Offer"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ListMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createOfferIntent",
+        "summary": "Criar oferta (intenção)",
+        "tags": [
+          "ofertas"
+        ],
+        "description": "Registra a intenção de criar uma oferta direcionada e devolve contractCall para a carteira assinar. A oferta só aparece em GET /api/offers depois que o listener indexar OfferCreated. A API antecipa as checagens do contrato: ofertante e tomador cadastrados, partes diferentes e limite do tomador >= amountCents.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "amountCents": {
+                    "description": "Valor em centavos de BRLt, string decimal (100000000 = R$ 1.000.000,00).",
+                    "pattern": "^[1-9][0-9]{0,29}$",
+                    "type": "string"
+                  },
+                  "borrowerWallet": {
+                    "description": "Carteira cadastrada do banco tomador (oferta direcionada).",
+                    "pattern": "^0x[0-9a-fA-F]{40}$",
+                    "type": "string"
+                  },
+                  "rateCdiBps": {
+                    "description": "Percentual do CDI em pontos-base (10500 = 105% do CDI).",
+                    "maximum": 100000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "termDays": {
+                    "description": "Prazo do empréstimo em dias (1 = overnight).",
+                    "maximum": 365,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "validitySeconds": {
+                    "description": "Janela, em segundos, para o tomador aceitar ou rejeitar (60 a 86400).",
+                    "maximum": 86400,
+                    "minimum": 60,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "borrowerWallet",
+                  "amountCents",
+                  "rateCdiBps",
+                  "termDays",
+                  "validitySeconds"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^0x[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "in": "header",
+            "name": "x-wallet-address",
+            "required": true,
+            "description": "Carteira do operador que vai assinar a transação. Provisório: será substituído por autenticação assinada (SIWE) antes do fim dos mocks."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TransactionRequest"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/offers/{id}": {
+      "get": {
+        "operationId": "getOffer",
+        "summary": "Detalhar oferta",
+        "tags": [
+          "ofertas"
+        ],
+        "description": "Detalhe de uma oferta, com a liquidação quando houver.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Id da oferta na API."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Offer"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/offers/{id}/events": {
+      "get": {
+        "operationId": "listOfferEvents",
+        "summary": "Histórico da oferta",
+        "tags": [
+          "ofertas"
+        ],
+        "description": "Histórico on-chain da oferta em ordem de bloco e log: OfferCreated, OfferAccepted, OfferSettled, OfferRejected, OfferCancelled ou OfferExpired.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Id da oferta na API."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/ChainEvent"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/offers/{id}/accept": {
+      "post": {
+        "operationId": "acceptOfferIntent",
+        "summary": "Aceitar oferta (intenção)",
+        "tags": [
+          "ofertas"
+        ],
+        "description": "Registra a intenção do tomador de aceitar. A API antecipa as checagens do contrato (oferta aberta, carteira tomadora, as duas partes cadastradas e limite suficiente). O aceite e a liquidação DvP acontecem na mesma transação on-chain.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Id da oferta na API."
+          },
+          {
+            "schema": {
+              "pattern": "^0x[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "in": "header",
+            "name": "x-wallet-address",
+            "required": true,
+            "description": "Carteira do operador que vai assinar a transação. Provisório: será substituído por autenticação assinada (SIWE) antes do fim dos mocks."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TransactionRequest"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/offers/{id}/reject": {
+      "post": {
+        "operationId": "rejectOfferIntent",
+        "summary": "Rejeitar oferta (intenção)",
+        "tags": [
+          "ofertas"
+        ],
+        "description": "Registra a intenção do tomador de recusar a oferta antes do vencimento. Estado final on-chain: rejected.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Id da oferta na API."
+          },
+          {
+            "schema": {
+              "pattern": "^0x[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "in": "header",
+            "name": "x-wallet-address",
+            "required": true,
+            "description": "Carteira do operador que vai assinar a transação. Provisório: será substituído por autenticação assinada (SIWE) antes do fim dos mocks."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TransactionRequest"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/offers/{id}/cancel": {
+      "post": {
+        "operationId": "cancelOfferIntent",
+        "summary": "Cancelar oferta (intenção)",
+        "tags": [
+          "ofertas"
+        ],
+        "description": "Registra a intenção do ofertante de retirar a oferta antes do aceite e do vencimento. Estado final on-chain: cancelled.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Id da oferta na API."
+          },
+          {
+            "schema": {
+              "pattern": "^0x[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "in": "header",
+            "name": "x-wallet-address",
+            "required": true,
+            "description": "Carteira do operador que vai assinar a transação. Provisório: será substituído por autenticação assinada (SIWE) antes do fim dos mocks."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TransactionRequest"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/transaction-requests/{id}": {
+      "get": {
+        "operationId": "getTransactionRequest",
+        "summary": "Consultar intenção",
+        "tags": [
+          "intenções"
+        ],
+        "description": "Estado de uma intenção. O frontend pode consultar até ver confirmed ou failed (definidos pelo listener).",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Id da intenção."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TransactionRequest"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/transaction-requests/{id}/submission": {
+      "post": {
+        "operationId": "submitTransaction",
+        "summary": "Informar hash da transação",
+        "tags": [
+          "intenções"
+        ],
+        "description": "Informa o hash da transação assinada. A intenção passa de pending para submitted. Só a carteira solicitante pode informar, uma única vez e antes de expiresAt.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "txHash": {
+                    "description": "Hash devolvido pela carteira depois de assinar e enviar.",
+                    "pattern": "^0x[0-9a-fA-F]{64}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "txHash"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Id da intenção."
+          },
+          {
+            "schema": {
+              "pattern": "^0x[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "in": "header",
+            "name": "x-wallet-address",
+            "required": true,
+            "description": "Carteira do operador que vai assinar a transação. Provisório: será substituído por autenticação assinada (SIWE) antes do fim dos mocks."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TransactionRequest"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/operations": {
+      "get": {
+        "operationId": "listOperations",
+        "summary": "Listar operações liquidadas",
+        "tags": [
+          "operações"
+        ],
+        "description": "Histórico de operações liquidadas (RF05), mais recentes primeiro. Cada item é o comprovante da liquidação DvP.",
+        "parameters": [
+          {
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "description": "Itens por página (1 a 100)."
+          },
+          {
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "description": "Itens a pular."
+          },
+          {
+            "schema": {
+              "pattern": "^0x[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "wallet",
+            "required": false,
+            "description": "Só operações em que a carteira é ofertante ou tomadora."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/Operation"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ListMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/operations/{txHash}": {
+      "get": {
+        "operationId": "getOperation",
+        "summary": "Detalhar operação",
+        "tags": [
+          "operações"
+        ],
+        "description": "Comprovante de uma operação pelo hash da liquidação.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^0x[0-9a-fA-F]{64}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "txHash",
+            "required": true,
+            "description": "Hash da transação de liquidação."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Operation"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/credit-limits": {
+      "get": {
+        "operationId": "listCreditLimits",
+        "summary": "Listar limites",
+        "tags": [
+          "limites"
+        ],
+        "description": "Limites disponíveis por carteira, maior limite primeiro (RF04). Para escolher o tomador de uma nova oferta: registered=true, minAvailableCents=<valor> e excludeWallet=<carteira do operador>.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^0x[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "excludeWallet",
+            "required": false,
+            "description": "Remove uma carteira da lista (use a do próprio operador ao escolher o tomador)."
+          },
+          {
+            "schema": {
+              "pattern": "^(0|[1-9][0-9]{0,29})$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "minAvailableCents",
+            "required": false,
+            "description": "Só carteiras com limite disponível maior ou igual (centavos, string decimal)."
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "registered",
+            "required": false,
+            "description": "true: só carteiras autorizadas no contrato."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/CreditLimit"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/credit-limits/{wallet}": {
+      "get": {
+        "operationId": "getCreditLimit",
+        "summary": "Detalhar limite",
+        "tags": [
+          "limites"
+        ],
+        "description": "Limite atual de uma carteira.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^0x[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "wallet",
+            "required": true,
+            "description": "Carteira (qualquer caixa)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CreditLimit"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/credit-limits/{wallet}/history": {
+      "get": {
+        "operationId": "listCreditLimitHistory",
+        "summary": "Histórico de limite",
+        "tags": [
+          "limites"
+        ],
+        "description": "Mudanças de limite da carteira, mais recentes primeiro: ajustes do admin e débitos das liquidações.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^0x[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "wallet",
+            "required": true,
+            "description": "Carteira (qualquer caixa)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/CreditLimitChange"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "operationId": "getOpenApi",
+        "summary": "Contrato OpenAPI",
+        "tags": [
+          "documentação"
+        ],
+        "description": "Documento OpenAPI 3.0 desta versão.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+                  "properties": {
+                    "correlationId": {
+                      "description": "Id da requisição, igual ao registrado no log do servidor.",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "description": "Explicação legível do erro.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Código HTTP repetido no corpo.",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "description": "Resumo curto e estável do erro.",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "URI estável do tipo de erro. Os tipos possíveis estão em docs/api.md; todos começam com https://api.example.invalid/problems/.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "correlationId"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Local",
+      "url": "http://127.0.0.1:3000"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Ofertas confirmadas on-chain e intenções de criar, aceitar, rejeitar e cancelar.",
+      "name": "ofertas"
+    },
+    {
+      "description": "Ciclo de uma intenção: pending até o frontend informar o hash, depois submitted até o listener confirmar.",
+      "name": "intenções"
+    },
+    {
+      "description": "Histórico de liquidações DvP (comprovantes).",
+      "name": "operações"
+    },
+    {
+      "description": "Limites de crédito por carteira e seu histórico.",
+      "name": "limites"
+    },
+    {
+      "description": "Contratos implantados e estado do listener.",
+      "name": "rede"
+    },
+    {
+      "description": "Liveness e readiness do processo.",
+      "name": "saúde"
+    },
+    {
+      "description": "Contrato OpenAPI servido pela aplicação.",
+      "name": "documentação"
+    }
+  ]
+}
