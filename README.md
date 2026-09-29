@@ -205,8 +205,7 @@ O workflow em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) divide as v
 RF01 a RF03 são atendidos pelo repositório de contratos, com apoio deste.
 
 ## Documentação
-
-- [`docs/arquitetura.md`](docs/arquitetura.md) — componentes, decisões, orçamento de latência, riscos e caminho para produção.
+- [`docs/arquitetura.md`](docs/arquitetura.md) traz componentes, decisões, orçamento de latência, riscos e caminho para produção. É um documento de outro time, que entrou em `main` pelo PR #2; o backend é consumidor dele, não autor. O transporte, o orçamento de latência e a seção de reorg descrevem o desenho aceito por este repositório, e qualquer mudança nele depende do time autor.
 - [`docs/api.md`](docs/api.md) — referência da API: rotas, payloads, erros, estados e massa mock.
 - [`docs/openapi.json`](docs/openapi.json) e [`docs/collection/`](docs/collection/) — contrato OpenAPI e coleção Postman gerados por `npm run docs:export`.
 - [`docs/modelagem-banco.md`](docs/modelagem-banco.md) — modelo entidade-relacionamento alinhado ao contrato DvP; esquema SQL em [`migrations/001_initial_schema.sql`](migrations/001_initial_schema.sql).
