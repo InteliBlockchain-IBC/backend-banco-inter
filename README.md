@@ -26,9 +26,9 @@ O que ele explicitamente **não** faz: assinar transações. Quem assina é a ca
 
 ## Estado atual
 
-Versão `0.1.0`. A API responde com **dados fictícios de um fixture em memória**: não há conexão com PostgreSQL, driver `pg`, dependência `viem` nem configuração de RPC ou ABI nesta versão.
+Versão `0.2.0`. Todas as rotas da API existem com o **payload final**, mas respondem com **dados fictícios em memória**: ainda não há PostgreSQL, driver `pg`, `viem`, RPC nem ABI ligados.
 
-Toda resposta de `/api/*` carrega `x-data-source: mock` no cabeçalho e `meta.source: "mock"` no corpo, para que ninguém confunda fixture com dado real.
+Toda resposta de `/api/*` carrega `x-data-source: mock` no cabeçalho e `meta.source: "mock"` no corpo, para que ninguém confunda fixture com dado real. As rotas de escrita validam as mesmas regras do contrato e guardam as intenções em memória até o processo reiniciar.
 
 ## Começando
 
@@ -52,6 +52,7 @@ node --env-file=.env dist/src/server.js
 | --- | --- |
 | `npm run build` | Compila o TypeScript para `dist/` |
 | `npm run start` | Sobe o servidor compilado |
+| `npm run docs:export` | Regera `docs/openapi.json` e a coleção Postman |
 | `npm test` | Roda a suíte de testes |
 | `npm run coverage` | Roda os testes com cobertura |
 | `npm run typecheck` | Verifica os tipos sem gerar arquivos |
@@ -62,19 +63,34 @@ node --env-file=.env dist/src/server.js
 
 ## API
 
+Referência completa, com payloads, erros e exemplos: **[`docs/api.md`](docs/api.md)**. Para testar sem ler código, importe a coleção [`docs/collection/backend-banco-inter.postman_collection.json`](docs/collection/backend-banco-inter.postman_collection.json) no Postman, Bruno ou Insomnia.
+
 | Método | Caminho | Descrição |
 | --- | --- | --- |
+| GET | `/api/deployment` | Rede e endereços dos contratos |
+| GET | `/api/sync-status` | Último bloco indexado e atraso do listener |
+| GET | `/api/offers` | Ofertas, com filtros por status, carteira e lado |
+| POST | `/api/offers` | Intenção de criar oferta direcionada |
+| GET | `/api/offers/:id` | Detalhe da oferta, com a liquidação |
+| GET | `/api/offers/:id/events` | Histórico on-chain da oferta |
+| POST | `/api/offers/:id/accept` | Intenção de aceitar (tomador) |
+| POST | `/api/offers/:id/reject` | Intenção de rejeitar (tomador) |
+| POST | `/api/offers/:id/cancel` | Intenção de cancelar (ofertante) |
+| GET | `/api/transaction-requests/:id` | Estado de uma intenção |
+| POST | `/api/transaction-requests/:id/submission` | Informa o hash assinado pela carteira |
+| GET | `/api/operations` | Histórico de operações liquidadas |
+| GET | `/api/operations/:txHash` | Comprovante da operação |
+| GET | `/api/credit-limits` | Limites por carteira (e filtro de tomadores elegíveis) |
+| GET | `/api/credit-limits/:wallet` | Limite de uma carteira |
+| GET | `/api/credit-limits/:wallet/history` | Histórico de mudanças de limite |
 | GET | `/health` | Liveness. Devolve `{ "status": "ok" }` |
 | GET | `/ready` | Readiness. Lista dependências, hoje nenhuma |
-| GET | `/api/offers` | Coleção de ofertas |
-| GET | `/api/offers/:id` | Detalhe de uma oferta |
-| GET | `/api/operations` | Coleção de operações |
-| GET | `/api/operations/:txHash` | Detalhe de uma operação |
-| GET | `/api/credit-limits` | Coleção de limites de crédito |
-| GET | `/openapi.json` | Documento OpenAPI `0.1.0` servido pela aplicação |
+| GET | `/openapi.json` | Documento OpenAPI `0.2.0` servido pela aplicação |
 | GET | `/docs` | Interface de documentação a partir do contrato |
 
-Erros usam `application/problem+json`, com `type`, `title`, `status`, `detail` e `correlationId`. Recurso inexistente devolve 404, parâmetro inválido devolve 400. Nenhuma resposta expõe stack trace, payload, SQL, URL de RPC ou variável de ambiente.
+A API não assina transações: as rotas `POST` registram a **intenção** e devolvem `contractCall` para a carteira do operador assinar. Elas exigem o cabeçalho `X-Wallet-Address`, provisório até existir login assinado.
+
+Erros usam `application/problem+json`, com `type`, `title`, `status`, `detail` e `correlationId`; a lista de tipos está em [`docs/api.md`](docs/api.md#3-erros). Nenhuma resposta expõe stack trace, SQL, URL de RPC ou variável de ambiente.
 
 `/docs` é registrado como plugin de UI, não como rota com schema, então não aparece em `document.paths` do `/openapi.json`.
 
@@ -144,15 +160,28 @@ O raciocínio completo — alternativas descartadas, orçamento de latência do 
 
 ```
 src/
-  app.ts            montagem do Fastify, plugins e OpenAPI
-  server.ts         bootstrap e ciclo de vida do processo
-  config.ts         leitura e validação das variáveis de ambiente
-  problem.ts        erros em application/problem+json
+  app.ts              montagem do Fastify, plugins, erros e OpenAPI
+  server.ts           bootstrap e ciclo de vida do processo
+  config.ts           leitura e validação das variáveis de ambiente
+  domain.ts           tipos e unidades espelhando o contrato e a migration
+  schemas.ts          esquemas JSON compartilhados (componentes do OpenAPI)
+  problem.ts          erros em application/problem+json
+  http.ts             envelope { data, meta } das respostas
+  mock/
+    fixtures.ts       massa fictícia coerente com o contrato
+    store.ts          estado em memória no lugar do Postgres
   routes/
-    health.ts       liveness e readiness
-    mock-read.ts    rotas de leitura sobre o fixture
-test/               testes com node:test e injeção do Fastify
-docs/               arquitetura e decisões
+    health.ts         liveness e readiness
+    chain.ts          contratos implantados e estado do listener
+    offers.ts         ofertas e intenções de criar, aceitar, rejeitar e cancelar
+    transaction-requests.ts  consulta de intenção e envio do hash
+    operations.ts     operações liquidadas
+    credit-limits.ts  limites e histórico
+scripts/
+  export-docs.ts      gera docs/openapi.json e a coleção Postman
+migrations/           esquema SQL versionado
+test/                 testes com node:test e injeção do Fastify
+docs/                 arquitetura, modelagem, API, OpenAPI e coleção
 ```
 
 ## Testes e CI
@@ -181,6 +210,8 @@ RF01 a RF03 são atendidos pelo repositório de contratos, com apoio deste.
 ## Documentação
 
 - [`docs/arquitetura.md`](docs/arquitetura.md) — componentes, decisões, orçamento de latência, riscos e caminho para produção.
+- [`docs/api.md`](docs/api.md) — referência da API: rotas, payloads, erros, estados e massa mock.
+- [`docs/openapi.json`](docs/openapi.json) e [`docs/collection/`](docs/collection/) — contrato OpenAPI e coleção Postman gerados por `npm run docs:export`.
 - [`docs/modelagem-banco.md`](docs/modelagem-banco.md) — modelo entidade-relacionamento alinhado ao contrato DvP; esquema SQL em [`migrations/001_initial_schema.sql`](migrations/001_initial_schema.sql).
 
 ## Licença

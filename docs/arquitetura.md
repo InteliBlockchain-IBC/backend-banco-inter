@@ -28,7 +28,7 @@ O diagrama de componentes fica no [README](../README.md#arquitetura), fonte úni
 
 O caminho de uma operação, do clique à tela:
 
-1. O frontend registra a intenção na API, que grava a oferta como `pendente` e devolve os argumentos normalizados (valor em wei, taxa em basis points, endereço do contrato).
+1. O frontend registra a intenção na API, que grava a intenção como `pending` e devolve os argumentos normalizados (valor em centavos de BRLt, taxa em pontos-base do CDI, endereço do contrato). O contrato de cada rota está em [`api.md`](api.md).
 2. A carteira do operador monta e assina a chamada ao contrato. O backend não participa deste passo.
 3. O contrato valida o limite e executa o swap atômico na mesma transação.
 4. O contrato emite o evento. O listener recebe por `eth_subscribe`, grava no Postgres e dispara `NOTIFY`.
