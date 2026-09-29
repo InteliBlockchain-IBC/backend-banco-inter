@@ -181,6 +181,7 @@ RF01 a RF03 são atendidos pelo repositório de contratos, com apoio deste.
 ## Documentação
 
 - [`docs/arquitetura.md`](docs/arquitetura.md) — componentes, decisões, orçamento de latência, riscos e caminho para produção.
+- [`docs/modelagem-banco.md`](docs/modelagem-banco.md) — modelo entidade-relacionamento alinhado ao contrato DvP; esquema SQL em [`migrations/001_initial_schema.sql`](migrations/001_initial_schema.sql).
 
 ## Licença
 
