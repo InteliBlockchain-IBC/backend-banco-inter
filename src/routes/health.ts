@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { problemSchema } from "../problem.js";
 
 const healthResponse = {
   additionalProperties: false,
@@ -26,7 +27,7 @@ export async function registerHealthRoutes(
       schema: {
         description: "Liveness: o processo está de pé.",
         operationId: "getHealth",
-        response: { 200: healthResponse },
+        response: { 200: healthResponse, 500: problemSchema },
         summary: "Liveness",
         tags: ["saúde"],
       },
@@ -40,7 +41,7 @@ export async function registerHealthRoutes(
         description:
           "Readiness: dependências prontas. Hoje nenhuma; o Postgres entra quando os mocks saírem.",
         operationId: "getReady",
-        response: { 200: readyResponse },
+        response: { 200: readyResponse, 500: problemSchema },
         summary: "Readiness",
         tags: ["saúde"],
       },

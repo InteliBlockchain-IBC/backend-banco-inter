@@ -197,7 +197,7 @@
               "status": "OK"
             },
             {
-              "body": "{\n  \"correlationId\": \"req-6\",\n  \"detail\": \"A validação da requisição falhou: querystring/status must be equal to one of the allowed values.\",\n  \"status\": 400,\n  \"title\": \"Requisição inválida\",\n  \"type\": \"https://api.example.invalid/problems/validation-error\"\n}",
+              "body": "{\n  \"correlationId\": \"req-6\",\n  \"detail\": \"A validação da requisição falhou.\",\n  \"status\": 400,\n  \"title\": \"Requisição inválida\",\n  \"type\": \"https://api.example.invalid/problems/validation-error\"\n}",
               "code": 400,
               "header": [
                 {
@@ -1328,7 +1328,7 @@
               "status": "OK"
             },
             {
-              "body": "{\n  \"correlationId\": \"req-t\",\n  \"detail\": \"A validação da requisição falhou: params/txHash must match pattern \\\"^0x[0-9a-fA-F]{64}$\\\".\",\n  \"status\": 400,\n  \"title\": \"Requisição inválida\",\n  \"type\": \"https://api.example.invalid/problems/validation-error\"\n}",
+              "body": "{\n  \"correlationId\": \"req-t\",\n  \"detail\": \"A validação da requisição falhou.\",\n  \"status\": 400,\n  \"title\": \"Requisição inválida\",\n  \"type\": \"https://api.example.invalid/problems/validation-error\"\n}",
               "code": 400,
               "header": [
                 {

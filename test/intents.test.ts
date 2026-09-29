@@ -105,7 +105,7 @@ test("creating an offer requires the wallet header", async (t) => {
   const response = await createOffer(app, undefined);
 
   assert.equal(response.statusCode, 400);
-  assert.match(response.json().detail, /x-wallet-address/);
+  assert.equal(response.json().detail, "A validação da requisição falhou.");
 });
 
 test("creating an offer rejects malformed or out-of-range fields", async (t) => {

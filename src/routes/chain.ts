@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { sendData } from "../http.js";
 import type { MockStore } from "../mock/store.js";
-import { dataEnvelope } from "../schemas.js";
+import { dataEnvelope, errorResponses } from "../schemas.js";
 
 export async function registerChainRoutes(
   app: FastifyInstance,
@@ -14,7 +14,10 @@ export async function registerChainRoutes(
         description:
           "Rede e endereços dos contratos. O frontend usa para montar as chamadas e checar se a carteira está na rede certa.",
         operationId: "getDeployment",
-        response: { 200: dataEnvelope({ $ref: "Deployment#" }) },
+        response: {
+          200: dataEnvelope({ $ref: "Deployment#" }),
+          ...errorResponses(),
+        },
         summary: "Contratos implantados",
         tags: ["rede"],
       },
@@ -29,7 +32,10 @@ export async function registerChainRoutes(
         description:
           "Último bloco processado pelo listener e atraso em segundos. Quando stale for true, a interface deve avisar que os dados podem estar desatualizados.",
         operationId: "getSyncStatus",
-        response: { 200: dataEnvelope({ $ref: "SyncStatus#" }) },
+        response: {
+          200: dataEnvelope({ $ref: "SyncStatus#" }),
+          ...errorResponses(),
+        },
         summary: "Estado da sincronização",
         tags: ["rede"],
       },

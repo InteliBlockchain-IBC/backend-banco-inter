@@ -104,13 +104,12 @@ flowchart LR
 
     subgraph CLIENT["Cliente"]
         FE["Mesa de Operações<br/><i>React</i>"]
-        SSECLI["EventSource<br/><i>escuta /eventos</i>"]
         WALLET["Carteira<br/><i>MetaMask</i>"]
     end
 
     subgraph WEB2["Web2 — este repositório"]
         API["API REST<br/><i>Fastify 5 · TypeScript strict</i>"]
-        LIS["Listener de eventos<br/><i>viem · WebSocket + cursor</i>"]
+        LIS["Listener de eventos<br/><i>viem · polling + cursor</i>"]
         DB[("PostgreSQL<br/><i>pg · migrations SQL</i>")]
     end
 
@@ -135,17 +134,15 @@ flowchart LR
     DVP -->|"6 · valida limite"| LIM
     DVP <-->|"7 · swap atômico DvP"| TOKEN
     DVP -.->|"8 · emite evento"| RPC
-    RPC -.->|"9 · eth_subscribe"| LIS
-    LIS -->|"10 · UPSERT idempotente + NOTIFY"| DB
-    DB -.->|"11 · LISTEN"| API
-    API -.->|"12 · SSE"| SSECLI
-    SSECLI --> FE
+    RPC -.->|"9 · polling getLogs"| LIS
+    LIS -->|"10 · UPSERT idempotente"| DB
+    FE -.->|"11 · consulta periódica"| API
 
     ABI -.-> LIS
     ABI -.-> FE
 ```
 
-Setas tracejadas são assíncronas.
+Setas tracejadas são assíncronas. O frontend e o listener descobrem mudanças por polling; não há rota SSE nem `eth_subscribe` no serviço atual.
 
 ### Decisões
 

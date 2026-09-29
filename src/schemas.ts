@@ -555,4 +555,6 @@ export const requestIdParams = {
 } as const;
 
 export const errorResponses = (...codes: number[]) =>
-  Object.fromEntries(codes.map((code) => [code, problemRef]));
+  Object.fromEntries(
+    [...new Set([...codes, 500])].map((code) => [code, problemRef]),
+  );

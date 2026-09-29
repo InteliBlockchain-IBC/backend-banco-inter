@@ -798,6 +798,47 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+                  "properties": {
+                    "correlationId": {
+                      "description": "Id da requisição, igual ao registrado no log do servidor.",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "description": "Explicação legível do erro.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Código HTTP repetido no corpo.",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "description": "Resumo curto e estável do erro.",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "URI estável do tipo de erro. Os tipos possíveis estão em docs/api.md; todos começam com https://api.example.invalid/problems/.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "correlationId"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           }
         }
       }
@@ -832,6 +873,47 @@
                   "required": [
                     "status",
                     "dependencies"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+                  "properties": {
+                    "correlationId": {
+                      "description": "Id da requisição, igual ao registrado no log do servidor.",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "description": "Explicação legível do erro.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Código HTTP repetido no corpo.",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "description": "Resumo curto e estável do erro.",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "URI estável do tipo de erro. Os tipos possíveis estão em docs/api.md; todos começam com https://api.example.invalid/problems/.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "correlationId"
                   ],
                   "type": "object"
                 }
@@ -872,6 +954,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -904,6 +996,16 @@
                     "meta"
                   ],
                   "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -1013,6 +1115,16 @@
             }
           },
           "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {
               "application/json": {
@@ -1144,6 +1256,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -1203,6 +1325,16 @@
             }
           },
           "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {
               "application/json": {
@@ -1273,6 +1405,16 @@
             }
           },
           "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {
               "application/json": {
@@ -1388,6 +1530,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -1487,6 +1639,16 @@
             }
           },
           "422": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {
               "application/json": {
@@ -1602,6 +1764,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -1661,6 +1833,16 @@
             }
           },
           "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {
               "application/json": {
@@ -1787,6 +1969,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -1870,6 +2062,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -1929,6 +2131,16 @@
             }
           },
           "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {
               "application/json": {
@@ -2016,6 +2228,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -2075,6 +2297,16 @@
             }
           },
           "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {
               "application/json": {
@@ -2153,6 +2385,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -2172,6 +2414,47 @@
               "application/json": {
                 "schema": {
                   "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+                  "properties": {
+                    "correlationId": {
+                      "description": "Id da requisição, igual ao registrado no log do servidor.",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "description": "Explicação legível do erro.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Código HTTP repetido no corpo.",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "description": "Resumo curto e estável do erro.",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "URI estável do tipo de erro. Os tipos possíveis estão em docs/api.md; todos começam com https://api.example.invalid/problems/.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "correlationId"
+                  ],
                   "type": "object"
                 }
               }

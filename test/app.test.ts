@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { API_VERSION } from "../src/app.js";
+import { API_VERSION, buildApp } from "../src/app.js";
 import { hashOf, mockOfferId, mockWallets, offers, setup } from "./support.js";
 
 test("health reports a live process", async (t) => {
@@ -111,7 +111,6 @@ test("unknown query fields are rejected instead of removed", async (t) => {
     response.json().type,
     "https://api.example.invalid/problems/validation-error",
   );
-  assert.match(response.json().detail, /must NOT have additional properties/);
 });
 
 test("path parameters are validated before lookup", async (t) => {
@@ -206,4 +205,57 @@ test("hash lookups are case-insensitive", async (t) => {
   assert.equal(response.statusCode, 200);
   assert.equal(response.json().data.txHash, tx);
   assert.equal(missing.statusCode, 404);
+});
+
+test("a malformed URL is answered with Problem Details and security headers", async (t) => {
+  const app = await buildApp({ logger: false });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "GET", url: "/api/offers/%ZZ" });
+
+  assert.equal(response.statusCode, 400);
+  assert.match(
+    response.headers["content-type"] ?? "",
+    /^application\/problem\+json/,
+  );
+  assert.equal(typeof response.json().correlationId, "string");
+  assert.equal(response.headers["x-content-type-options"], "nosniff");
+  assert.equal(response.headers["x-frame-options"], "DENY");
+  assert.equal(response.headers["referrer-policy"], "no-referrer");
+});
+
+test("every response carries the security headers", async (t) => {
+  const { app } = await setup(t);
+
+  for (const url of [
+    "/health",
+    "/api/offers",
+    `/api/offers/${mockOfferId(999)}`,
+  ]) {
+    const response = await app.inject({ method: "GET", url });
+    assert.equal(response.headers["x-content-type-options"], "nosniff", url);
+    assert.equal(response.headers["x-frame-options"], "DENY", url);
+    assert.equal(response.headers["referrer-policy"], "no-referrer", url);
+    assert.match(
+      String(response.headers["content-security-policy"]),
+      /frame-ancestors 'none'/,
+    );
+  }
+});
+
+test("an oversized body is reported as a size problem", async (t) => {
+  const { app } = await setup(t);
+
+  const response = await app.inject({
+    headers: { "content-type": "application/json" },
+    method: "POST",
+    payload: JSON.stringify({ pad: "x".repeat(20_000) }),
+    url: "/api/offers",
+  });
+
+  assert.equal(response.statusCode, 413);
+  assert.equal(
+    response.json().type,
+    "https://api.example.invalid/problems/payload-too-large",
+  );
 });

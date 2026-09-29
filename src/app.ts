@@ -1,8 +1,18 @@
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
-import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
+import Fastify, {
+  type FastifyError,
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+} from "fastify";
 import { MockStore } from "./mock/store.js";
-import { ApiProblem, createProblem, PROBLEM_BASE_URI } from "./problem.js";
+import {
+  ApiProblem,
+  createProblem,
+  problemSchema,
+  PROBLEM_BASE_URI,
+} from "./problem.js";
 import { registerChainRoutes } from "./routes/chain.js";
 import { registerCreditLimitRoutes } from "./routes/credit-limits.js";
 import { registerHealthRoutes } from "./routes/health.js";
@@ -15,11 +25,93 @@ export const API_VERSION = "0.2.0";
 
 export type BuildOptions = {
   logger?: boolean;
+  nodeEnv?: "development" | "production" | "test";
   /** Relógio injetável; os testes usam para controlar vencimentos. */
   now?: () => Date;
   /** Gerador de ids das intenções; o export de docs usa um determinístico. */
   newId?: () => string;
 };
+
+const securityHeaders = {
+  "content-security-policy":
+    "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
+  "referrer-policy": "no-referrer",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+} as const;
+
+type ProblemSpec = Readonly<{ detail: string; title: string; type: string }>;
+
+function applySecurityHeaders(reply: FastifyReply): void {
+  for (const [name, value] of Object.entries(securityHeaders)) {
+    reply.header(name, value);
+  }
+}
+
+function describeProblem(status: number): ProblemSpec {
+  if (status === 400) {
+    return {
+      detail: "A validação da requisição falhou.",
+      title: "Requisição inválida",
+      type: "validation-error",
+    };
+  }
+  if (status === 404) {
+    return {
+      detail: "O recurso solicitado não existe.",
+      title: "Recurso não encontrado",
+      type: "not-found",
+    };
+  }
+  if (status === 413) {
+    return {
+      detail: "O corpo da requisição excede o limite aceito.",
+      title: "Carga excessiva",
+      type: "payload-too-large",
+    };
+  }
+  if (status >= 500) {
+    return {
+      detail: "O servidor não conseguiu processar a requisição.",
+      title: "Erro interno do servidor",
+      type: "internal-error",
+    };
+  }
+  return {
+    detail: "A requisição não pôde ser processada.",
+    title: "Requisição inválida",
+    type: "client-error",
+  };
+}
+
+function classifyStatus(error: FastifyError, validation: boolean): number {
+  if (validation) return 400;
+  return typeof error.statusCode === "number" &&
+    error.statusCode >= 400 &&
+    error.statusCode < 500
+    ? error.statusCode
+    : 500;
+}
+
+function sendProblem(
+  reply: FastifyReply,
+  correlationId: string,
+  status: number,
+) {
+  const spec = describeProblem(status);
+  return reply
+    .code(status)
+    .type("application/problem+json")
+    .send(
+      createProblem(
+        correlationId,
+        status,
+        spec.title,
+        spec.detail,
+        `${PROBLEM_BASE_URI}${spec.type}`,
+      ),
+    );
+}
 
 const tags = [
   {
@@ -53,17 +145,58 @@ export async function buildApp(
 ): Promise<FastifyInstance> {
   const now = options.now ?? (() => new Date());
   const store = new MockStore(now, options.newId);
+  const logStackTrace = options.nodeEnv === "development";
   const app = Fastify({
     ajv: { customOptions: { removeAdditional: false } },
     bodyLimit: 16 * 1024,
-    logger: options.logger ?? true,
+    connectionTimeout: 10_000,
+    frameworkErrors: (
+      error: FastifyError,
+      request: FastifyRequest,
+      reply: FastifyReply,
+    ) => {
+      const status = classifyStatus(error, false);
+      request.log.warn(
+        { code: error.code, correlationId: request.id, statusCode: status },
+        "requisição rejeitada antes do handler",
+      );
+      applySecurityHeaders(reply);
+      return sendProblem(reply, request.id, status);
+    },
+    logger:
+      options.logger === false
+        ? false
+        : {
+            redact: {
+              censor: "[redigido]",
+              paths: [
+                "req.headers.authorization",
+                "req.headers.cookie",
+                'res.headers["set-cookie"]',
+              ],
+            },
+            serializers: {
+              req(request: FastifyRequest) {
+                return {
+                  id: request.id,
+                  method: request.method,
+                  url: request.url.split("?")[0] ?? request.url,
+                };
+              },
+            },
+          },
+    requestTimeout: 15_000,
+  });
+
+  app.addHook("onSend", async (_request, reply) => {
+    applySecurityHeaders(reply);
   });
 
   for (const schema of sharedSchemas) app.addSchema(schema);
 
   app.setErrorHandler((error: FastifyError | ApiProblem, request, reply) => {
     if (error instanceof ApiProblem) {
-      request.log.info({ problem: error.slug }, "requisição recusada");
+      request.log.warn({ problem: error.slug }, "requisição recusada");
       return reply
         .code(error.status)
         .type("application/problem+json")
@@ -78,49 +211,23 @@ export async function buildApp(
         );
     }
 
-    request.log.error({ err: error }, "falha na requisição");
-
     const validationError =
       "validation" in error && error.validation !== undefined;
-    const clientStatus =
-      typeof error.statusCode === "number" &&
-      error.statusCode >= 400 &&
-      error.statusCode < 500
-        ? error.statusCode
-        : undefined;
-    const status = validationError ? 400 : (clientStatus ?? 500);
+    const status = classifyStatus(error, validationError);
     const clientError = status < 500;
-    return reply
-      .code(status)
-      .type("application/problem+json")
-      .send(
-        createProblem(
-          request.id,
-          status,
-          clientError ? "Requisição inválida" : "Erro interno do servidor",
-          validationError
-            ? `A validação da requisição falhou: ${error.message}.`
-            : clientError
-              ? "A validação da requisição falhou."
-              : "O servidor não conseguiu processar a requisição.",
-          `${PROBLEM_BASE_URI}${clientError ? "validation-error" : "internal-error"}`,
-        ),
-      );
+    const fields: Record<string, unknown> = {
+      code: error.code,
+      correlationId: request.id,
+      statusCode: status,
+      type: error.name,
+    };
+    if (logStackTrace && error.stack !== undefined) fields.stack = error.stack;
+    request.log[clientError ? "warn" : "error"](fields, "falha na requisição");
+    return sendProblem(reply, request.id, status);
   });
 
   app.setNotFoundHandler((request, reply) =>
-    reply
-      .code(404)
-      .type("application/problem+json")
-      .send(
-        createProblem(
-          request.id,
-          404,
-          "Recurso não encontrado",
-          "O recurso solicitado não existe.",
-          `${PROBLEM_BASE_URI}not-found`,
-        ),
-      ),
+    sendProblem(reply, request.id, 404),
   );
 
   await app.register(swagger, {
@@ -154,7 +261,10 @@ export async function buildApp(
       schema: {
         description: "Documento OpenAPI 3.0 desta versão.",
         operationId: "getOpenApi",
-        response: { 200: { additionalProperties: true, type: "object" } },
+        response: {
+          200: { additionalProperties: true, type: "object" },
+          500: problemSchema,
+        },
         summary: "Contrato OpenAPI",
         tags: ["documentação"],
       },

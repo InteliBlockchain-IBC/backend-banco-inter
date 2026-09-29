@@ -53,7 +53,13 @@ test("shared schemas are published as named components", async (t) => {
   t.after(() => app.close());
   await app.ready();
 
-  const document = app.swagger() as { components?: { schemas?: object } };
+  const document = app.swagger() as {
+    components?: { schemas?: object };
+    paths?: Record<
+      string,
+      Record<string, { responses?: Record<string, unknown> }>
+    >;
+  };
   const schemas = Object.keys(document.components?.schemas ?? {});
 
   for (const name of [
@@ -70,4 +76,28 @@ test("shared schemas are published as named components", async (t) => {
   ]) {
     assert.ok(schemas.includes(name), name);
   }
+
+  const paths = document.paths ?? {};
+  for (const [path, operations] of Object.entries(paths)) {
+    for (const [method, operation] of Object.entries(operations)) {
+      if (method === "parameters") {
+        continue;
+      }
+      assert.ok(
+        operation.responses?.["500"],
+        `${method.toUpperCase()} ${path} não declara resposta 500`,
+      );
+    }
+  }
+});
+
+test("the documentation UI is not part of the contract", async (t) => {
+  const app = await buildApp({ logger: false });
+  t.after(() => app.close());
+  await app.ready();
+
+  const document = app.swagger();
+
+  assert.equal(document.paths?.["/docs"], undefined);
+  assert.equal(document.paths?.["/api/operations/{txHash}/track"], undefined);
 });

@@ -31,8 +31,8 @@ O caminho de uma operação, do clique à tela:
 1. O frontend registra a intenção na API, que grava a intenção como `pending` e devolve os argumentos normalizados (valor em centavos de BRLt, taxa em pontos-base do CDI, endereço do contrato). O contrato de cada rota está em [`api.md`](api.md).
 2. A carteira do operador monta e assina a chamada ao contrato. O backend não participa deste passo.
 3. O contrato valida o limite e executa o swap atômico na mesma transação.
-4. O contrato emite o evento. O listener recebe por `eth_subscribe`, grava no Postgres e dispara `NOTIFY`.
-5. A API, escutando via `LISTEN`, empurra a mudança para o frontend.
+4. O contrato emite o evento. No ciclo seguinte de polling, o listener lê os logs pendentes e atualiza o Postgres.
+5. O frontend consulta a API periodicamente e exibe o estado indexado.
 
 ## Componentes
 
@@ -50,7 +50,7 @@ Rotas de oferta, aceite, cancelamento e histórico (RF05, RF06). As rotas de ofe
 
 ### Listener de eventos (viem)
 
-Lê os eventos do contrato na Sepolia e grava o resultado no Postgres: status, hash da transação, número do bloco, timestamp, partes e taxa (RNF03). É a costura entre Web3 e Web2, e o componente mais crítico do backend.
+Lê os eventos do contrato na Sepolia por polling, com cursor, e grava o resultado no Postgres: status, hash da transação, número do bloco, timestamp, partes e taxa (RNF03). É a costura entre Web3 e Web2, e o componente mais crítico do backend.
 
 ### PostgreSQL
 
@@ -96,17 +96,13 @@ Se o processo cair em qualquer ponto, ele recomeça do último bloco confirmado.
 
 Efeito colateral relevante: idempotência é também o que permite rodar mais de uma instância do listener em paralelo, caso um dia seja preciso redundância.
 
-### WebSocket para o gatilho, cursor como rede de segurança
+### Polling como gatilho, cursor como garantia
 
-O listener recebe os eventos por `eth_subscribe` (transport `webSocket` do `viem`), que entrega assim que o evento aparece, em vez de perguntar a cada intervalo.
+O listener consulta o provedor em intervalos fixos e, em cada ciclo, busca os logs entre o último bloco confirmado e o bloco atual. O cursor só avança depois da gravação idempotente; uma parada é recuperada no ciclo seguinte.
 
-WebSocket falha de um jeito específico: a conexão pode permanecer aberta e parar de entregar, sem erro. O `viem` reconecta sozinho, mas todo evento ocorrido durante a queda se perde — nenhum mecanismo de push recupera o que passou enquanto ele estava fora.
+WebSocket foi descartado porque ainda exigiria o cursor para recuperar os eventos perdidos enquanto o canal estivesse fora. Polling deixa uma única forma de falha observável: o cursor deixa de avançar.
 
-É o cursor que resolve isso. Na conexão e em cada reconexão, o listener busca o intervalo entre o último bloco processado e o atual antes de voltar a escutar. WebSocket entrega rápido; o cursor garante que nada se perde. Os dois juntos, não um no lugar do outro.
-
-Alternativa descartada: polling HTTP a cada 4 segundos. Mais simples, e suficiente para o RNF02, mas desperdiça chamadas de RPC e adiciona latência sem necessidade.
-
-O gatilho do ciclo fica isolado em uma função. Trocar para polling, se o WebSocket se mostrar instável na Sepolia, é uma alteração de uma linha que não toca no restante do listener.
+O gatilho do ciclo fica isolado. Se o polling não sustentar o volume ou o SLO medido, a troca para WebSocket sobre o mesmo cursor não afeta a projeção dos eventos.
 
 ### Sem proteção contra reorg
 
@@ -119,7 +115,7 @@ Mitigação adotada: o `block_number` é registrado em cada operação, permitin
 | Etapa | Pior caso |
 |---|---|
 | Transação incluída em bloco (Sepolia) | ~12s |
-| Listener recebe o evento (WebSocket) | ~0s |
+| Listener lê o intervalo pendente (polling) | até o intervalo do ciclo |
 | Gravação no Postgres | ~ms |
 | Frontend percebe a mudança (polling 3s) | 3s |
 | **Total** | **~15s** |
@@ -134,7 +130,7 @@ A folga é de cerca de 15 segundos. Quase todo o orçamento é consumido pelo te
 
 **Limite de crédito em duas fontes.** O contrato valida um limite on-chain; o Postgres guarda outro para exibição. Divergência faz o aceite falhar sem explicação na interface. Exige definição, junto ao time de contratos, de quem sincroniza e com que frequência.
 
-**Queda silenciosa da conexão WebSocket.** A conexão pode parar de entregar sem fechar. Mitigação: reconexão automática do `viem`, ressincronização pelo cursor a cada reconexão, e o timestamp da última sincronização exposto na API.
+**Polling interrompido.** Se o ciclo parar, a chain avança enquanto o banco congela. Mitigação: expor o timestamp da última sincronização e alertar quando ele ultrapassar o limite operacional.
 
 ## Caminho para produção
 
@@ -144,7 +140,7 @@ As decisões acima são adequadas a uma PoC em testnet pública. Um sistema em p
 
 **Rede permissionada, não Sepolia.** Redes com finalização imediata (Besu/QBFT e similares) não sofrem reorg, o que elimina uma classe inteira de preocupações do indexador. A escolha da rede é objeto do benchmark entregue em paralelo a este repositório.
 
-**Conexão mais estável, mesmo desenho.** O gatilho por WebSocket sobre cursor já é o desenho adotado; com nó dedicado ele deixa de sofrer as quedas típicas de um RPC compartilhado. O cursor continua obrigatório: nenhum mecanismo de push sobrevive a um deploy sem perder eventos.
+**Conexão mais estável, mesmo desenho.** O cursor permanece obrigatório com nó dedicado; polling é o transporte atual e pode ser reavaliado com métricas de volume e latência.
 
 **Listener redundante.** Mais de uma instância, viável sem alteração de código graças à idempotência da gravação.
 
