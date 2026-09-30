@@ -1,16 +1,29 @@
 {
   "info": {
-    "description": "API mock do backend Banco Inter, versão 0.2.0.\n\nTodas as respostas de /api/* são fictícias (cabeçalho X-Data-Source: mock).\nRodando a API localmente (npm run start), ajuste {{baseUrl}} se necessário.\nCarteiras de exemplo: lenderWallet = Banco Alfa, borrowerWallet = Banco Beta.\nAs requisições POST exigem o cabeçalho X-Wallet-Address.\nGuia completo em docs/api.md.",
+    "description": "API mock do backend Banco Inter, versão 0.3.0.\n\nRespostas de sucesso /api/* são fictícias (X-Data-Source: mock); erros são Problem Details.\nRodando a API localmente (npm run start), ajuste {{baseUrl}} se necessário.\nCarteiras de exemplo: lenderWallet = Banco Alfa, borrowerWallet = Banco Beta.\nSomente intenções de assinatura exigem X-Wallet-Address, sem autenticar a carteira.\nPOST só existe em development/test; production serve consultas fictícias.\nGuia completo em docs/api.md.",
     "name": "Backend Banco Inter - API mock",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "item": [
     {
-      "description": "Endereços dos contratos e estado do listener.",
+      "description": "Endereços e cursor fictícios, sem deploy ou listener.",
       "item": [
         {
-          "name": "Contratos implantados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Endereços fictícios",
           "request": {
             "header": [],
             "method": "GET",
@@ -59,7 +72,20 @@
           ]
         },
         {
-          "name": "Estado da sincronização",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Cursor simulado",
           "request": {
             "header": [],
             "method": "GET",
@@ -111,9 +137,22 @@
       "name": "Rede"
     },
     {
-      "description": "Leitura de ofertas e intenções de criar, aceitar, rejeitar e cancelar. As intenções devolvem contractCall para a carteira assinar.",
+      "description": "Leitura de ofertas e intenções fictícias em development/test. contractCall traz endereços sintéticos; não assinar nem enviar.",
       "item": [
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Listar ofertas",
           "request": {
             "header": [],
@@ -231,6 +270,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Ofertas abertas recebidas pelo tomador",
           "request": {
             "header": [],
@@ -308,6 +360,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Detalhar oferta",
           "request": {
             "header": [],
@@ -417,6 +482,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Histórico da oferta",
           "request": {
             "header": [],
@@ -475,6 +553,9 @@
               "listen": "test",
               "script": {
                 "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(202);",
+                  "});",
                   "if (pm.response.code === 202) {",
                   "  pm.collectionVariables.set(\"requestId\", pm.response.json().data.id);",
                   "}"
@@ -668,7 +749,7 @@
                 "header": [
                   {
                     "key": "X-Wallet-Address",
-                    "value": "{{lenderWallet}}"
+                    "value": "0xd4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4"
                   },
                   {
                     "key": "Content-Type",
@@ -745,6 +826,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(202);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Aceitar oferta (intenção)",
           "request": {
             "header": [
@@ -819,7 +913,7 @@
                 "header": [
                   {
                     "key": "X-Wallet-Address",
-                    "value": "{{borrowerWallet}}"
+                    "value": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
                   }
                 ],
                 "method": "POST",
@@ -885,7 +979,7 @@
                 "header": [
                   {
                     "key": "X-Wallet-Address",
-                    "value": "{{borrowerWallet}}"
+                    "value": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
                   }
                 ],
                 "method": "POST",
@@ -907,6 +1001,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(202);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Rejeitar oferta (intenção)",
           "request": {
             "header": [
@@ -970,6 +1077,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(202);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Cancelar oferta (intenção)",
           "request": {
             "header": [
@@ -1044,7 +1164,7 @@
                 "header": [
                   {
                     "key": "X-Wallet-Address",
-                    "value": "{{lenderWallet}}"
+                    "value": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
                   }
                 ],
                 "method": "POST",
@@ -1069,9 +1189,327 @@
       "name": "Ofertas"
     },
     {
+      "description": "Somente development/test: transições DvP sintéticas, sem autenticação ou transações reais. Criar preenche {{mockOfferId}}.",
+      "item": [
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set(\"mockOfferId\", pm.response.json().data.offer.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Criar oferta fictícia",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"lenderWallet\": \"{{lenderWallet}}\",\n  \"amountCents\": \"100000000\",\n  \"borrowerWallet\": \"{{borrowerWallet}}\",\n  \"rateCdiBps\": 10500,\n  \"termDays\": 1,\n  \"validitySeconds\": 3600\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mock",
+                "offers"
+              ],
+              "raw": "{{baseUrl}}/api/mock/offers"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"offer\": {\n      \"amountCents\": \"100000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0xf147e200e33c91ef8116a71ba33f5795ba8cb91e8cf6cc8211ec31cdfef07b7c\",\n      \"createdAt\": \"2026-09-29T12:00:00.000Z\",\n      \"createdBlock\": 9200000,\n      \"expiresAt\": \"2026-09-29T13:00:00.000Z\",\n      \"id\": \"f0000000-0000-4000-8000-000000000006\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"onchainOfferId\": \"10\",\n      \"onchainStatusCode\": 0,\n      \"rateCdiBps\": 10500,\n      \"settlement\": null,\n      \"status\": \"offered\",\n      \"termDays\": 1\n    },\n    \"operation\": null\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "201 - exemplo",
+              "originalRequest": {
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mock",
+                    "offers"
+                  ],
+                  "raw": "{{baseUrl}}/api/mock/offers"
+                },
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\n  \"lenderWallet\": \"{{lenderWallet}}\",\n  \"amountCents\": \"100000000\",\n  \"borrowerWallet\": \"{{borrowerWallet}}\",\n  \"rateCdiBps\": 10500,\n  \"termDays\": 1,\n  \"validitySeconds\": 3600\n}"
+                }
+              },
+              "status": "Created"
+            }
+          ]
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Aceitar oferta fictícia",
+          "request": {
+            "header": [],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mock",
+                "offers",
+                "{{mockOfferId}}",
+                "accept"
+              ],
+              "raw": "{{baseUrl}}/api/mock/offers/{{mockOfferId}}/accept"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"offer\": {\n      \"amountCents\": \"100000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0xf147e200e33c91ef8116a71ba33f5795ba8cb91e8cf6cc8211ec31cdfef07b7c\",\n      \"createdAt\": \"2026-09-29T12:00:00.000Z\",\n      \"createdBlock\": 9200000,\n      \"expiresAt\": \"2026-09-29T13:00:00.000Z\",\n      \"id\": \"f0000000-0000-4000-8000-000000000006\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"onchainOfferId\": \"10\",\n      \"onchainStatusCode\": 2,\n      \"rateCdiBps\": 10500,\n      \"settlement\": {\n        \"blockNumber\": 9200001,\n        \"positionTokenId\": \"10\",\n        \"settledAt\": \"2026-09-29T12:00:00.000Z\",\n        \"txHash\": \"0xaf887dd486fbbb87ceec1c601c5334dbbcd17989a459c635fe5aa5d51daab66e\"\n      },\n      \"status\": \"settled\",\n      \"termDays\": 1\n    },\n    \"operation\": {\n      \"amountCents\": \"100000000\",\n      \"blockHash\": \"0x5ac3ba865ae38245eefc397b7846a804d6454302df7ab79670c346a592d59973\",\n      \"blockNumber\": 9200001,\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"explorerUrl\": \"https://sepolia.etherscan.io/tx/0xaf887dd486fbbb87ceec1c601c5334dbbcd17989a459c635fe5aa5d51daab66e\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"offerId\": \"f0000000-0000-4000-8000-000000000006\",\n      \"onchainOfferId\": \"10\",\n      \"positionTokenId\": \"10\",\n      \"rateCdiBps\": 10500,\n      \"settledAt\": \"2026-09-29T12:00:00.000Z\",\n      \"termDays\": 1,\n      \"txHash\": \"0xaf887dd486fbbb87ceec1c601c5334dbbcd17989a459c635fe5aa5d51daab66e\"\n    }\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mock",
+                    "offers",
+                    "{{mockOfferId}}",
+                    "accept"
+                  ],
+                  "raw": "{{baseUrl}}/api/mock/offers/{{mockOfferId}}/accept"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Rejeitar oferta fictícia",
+          "request": {
+            "header": [],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mock",
+                "offers",
+                "{{openOfferId}}",
+                "reject"
+              ],
+              "raw": "{{baseUrl}}/api/mock/offers/{{openOfferId}}/reject"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"offer\": {\n      \"amountCents\": \"4000000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000017\",\n      \"createdAt\": \"2026-09-29T11:50:00.000Z\",\n      \"createdBlock\": 9199950,\n      \"expiresAt\": \"2026-09-29T12:50:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000008\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"onchainOfferId\": \"8\",\n      \"onchainStatusCode\": 5,\n      \"rateCdiBps\": 10500,\n      \"settlement\": null,\n      \"status\": \"rejected\",\n      \"termDays\": 1\n    },\n    \"operation\": null\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mock",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000008",
+                    "reject"
+                  ],
+                  "raw": "{{baseUrl}}/api/mock/offers/a0000000-0000-4000-8000-000000000008/reject"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Cancelar oferta fictícia",
+          "request": {
+            "header": [],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mock",
+                "offers",
+                "{{cancelOfferId}}",
+                "cancel"
+              ],
+              "raw": "{{baseUrl}}/api/mock/offers/{{cancelOfferId}}/cancel"
+            }
+          },
+          "response": [
+            {
+              "body": "{\n  \"data\": {\n    \"offer\": {\n      \"amountCents\": \"1500000000\",\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"createTxHash\": \"0x7000000000000000000000000000000000000000000000000000000000000018\",\n      \"createdAt\": \"2026-09-29T11:55:00.000Z\",\n      \"createdBlock\": 9199975,\n      \"expiresAt\": \"2026-09-29T12:55:00.000Z\",\n      \"id\": \"a0000000-0000-4000-8000-000000000009\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000003\",\n          \"name\": \"Banco Gama S.A. (fictício)\"\n        },\n        \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n      },\n      \"onchainOfferId\": \"9\",\n      \"onchainStatusCode\": 3,\n      \"rateCdiBps\": 10350,\n      \"settlement\": null,\n      \"status\": \"cancelled\",\n      \"termDays\": 2\n    },\n    \"operation\": null\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "X-Data-Source",
+                  "value": "mock"
+                }
+              ],
+              "name": "200 - exemplo",
+              "originalRequest": {
+                "header": [],
+                "method": "POST",
+                "url": {
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mock",
+                    "offers",
+                    "a0000000-0000-4000-8000-000000000009",
+                    "cancel"
+                  ],
+                  "raw": "{{baseUrl}}/api/mock/offers/a0000000-0000-4000-8000-000000000009/cancel"
+                }
+              },
+              "status": "OK"
+            }
+          ]
+        }
+      ],
+      "name": "Simulação DvP"
+    },
+    {
       "description": "Rode 'Criar oferta (intenção)' antes: ele preenche {{requestId}}.",
       "item": [
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Consultar intenção",
           "request": {
             "header": [],
@@ -1123,6 +1561,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Informar hash da transação",
           "request": {
             "body": {
@@ -1215,9 +1666,22 @@
       "name": "Intenções"
     },
     {
-      "description": "Operações liquidadas (comprovantes DvP).",
+      "description": "Operações fictícias, sem liquidação on-chain.",
       "item": [
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Listar operações",
           "request": {
             "header": [],
@@ -1241,7 +1705,7 @@
           },
           "response": [
             {
-              "body": "{\n  \"data\": [\n    {\n      \"amountCents\": \"2500000000\",\n      \"blockHash\": \"0xb0000000000000000000000000000000000000000000000000000000008c2963\",\n      \"blockNumber\": 9185635,\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"explorerUrl\": \"https://sepolia.etherscan.io/tx/0x700000000000000000000000000000000000000000000000000000000000000d\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000003\",\n          \"name\": \"Banco Gama S.A. (fictício)\"\n        },\n        \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n      },\n      \"offerId\": \"a0000000-0000-4000-8000-000000000002\",\n      \"onchainOfferId\": \"2\",\n      \"positionTokenId\": \"2\",\n      \"rateCdiBps\": 10100,\n      \"settledAt\": \"2026-09-27T12:07:00.000Z\",\n      \"termDays\": 1,\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000d\"\n    },\n    {\n      \"amountCents\": \"5000000000\",\n      \"blockHash\": \"0xb0000000000000000000000000000000000000000000000000000000008c0d5c\",\n      \"blockNumber\": 9178460,\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"explorerUrl\": \"https://sepolia.etherscan.io/tx/0x700000000000000000000000000000000000000000000000000000000000000b\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"offerId\": \"a0000000-0000-4000-8000-000000000001\",\n      \"onchainOfferId\": \"1\",\n      \"positionTokenId\": \"1\",\n      \"rateCdiBps\": 10250,\n      \"settledAt\": \"2026-09-26T12:12:00.000Z\",\n      \"termDays\": 1,\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000b\"\n    }\n  ],\n  \"meta\": {\n    \"limit\": 50,\n    \"offset\": 0,\n    \"source\": \"mock\",\n    \"total\": 2\n  }\n}",
+              "body": "{\n  \"data\": [\n    {\n      \"amountCents\": \"100000000\",\n      \"blockHash\": \"0x5ac3ba865ae38245eefc397b7846a804d6454302df7ab79670c346a592d59973\",\n      \"blockNumber\": 9200001,\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"explorerUrl\": \"https://sepolia.etherscan.io/tx/0xaf887dd486fbbb87ceec1c601c5334dbbcd17989a459c635fe5aa5d51daab66e\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"offerId\": \"f0000000-0000-4000-8000-000000000006\",\n      \"onchainOfferId\": \"10\",\n      \"positionTokenId\": \"10\",\n      \"rateCdiBps\": 10500,\n      \"settledAt\": \"2026-09-29T12:00:00.000Z\",\n      \"termDays\": 1,\n      \"txHash\": \"0xaf887dd486fbbb87ceec1c601c5334dbbcd17989a459c635fe5aa5d51daab66e\"\n    },\n    {\n      \"amountCents\": \"2500000000\",\n      \"blockHash\": \"0xb0000000000000000000000000000000000000000000000000000000008c2963\",\n      \"blockNumber\": 9185635,\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"explorerUrl\": \"https://sepolia.etherscan.io/tx/0x700000000000000000000000000000000000000000000000000000000000000d\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000003\",\n          \"name\": \"Banco Gama S.A. (fictício)\"\n        },\n        \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n      },\n      \"offerId\": \"a0000000-0000-4000-8000-000000000002\",\n      \"onchainOfferId\": \"2\",\n      \"positionTokenId\": \"2\",\n      \"rateCdiBps\": 10100,\n      \"settledAt\": \"2026-09-27T12:07:00.000Z\",\n      \"termDays\": 1,\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000d\"\n    },\n    {\n      \"amountCents\": \"5000000000\",\n      \"blockHash\": \"0xb0000000000000000000000000000000000000000000000000000000008c0d5c\",\n      \"blockNumber\": 9178460,\n      \"borrower\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000002\",\n          \"name\": \"Banco Beta S.A. (fictício)\"\n        },\n        \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n      },\n      \"chainId\": 11155111,\n      \"contractAddress\": \"0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\",\n      \"explorerUrl\": \"https://sepolia.etherscan.io/tx/0x700000000000000000000000000000000000000000000000000000000000000b\",\n      \"lender\": {\n        \"institution\": {\n          \"id\": \"b0000000-0000-4000-8000-000000000001\",\n          \"name\": \"Banco Alfa S.A. (fictício)\"\n        },\n        \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n      },\n      \"offerId\": \"a0000000-0000-4000-8000-000000000001\",\n      \"onchainOfferId\": \"1\",\n      \"positionTokenId\": \"1\",\n      \"rateCdiBps\": 10250,\n      \"settledAt\": \"2026-09-26T12:12:00.000Z\",\n      \"termDays\": 1,\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000b\"\n    }\n  ],\n  \"meta\": {\n    \"limit\": 50,\n    \"offset\": 0,\n    \"source\": \"mock\",\n    \"total\": 3\n  }\n}",
               "code": 200,
               "header": [
                 {
@@ -1279,6 +1743,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Detalhar operação",
           "request": {
             "header": [],
@@ -1328,7 +1805,7 @@
               "status": "OK"
             },
             {
-              "body": "{\n  \"correlationId\": \"req-t\",\n  \"detail\": \"A validação da requisição falhou.\",\n  \"status\": 400,\n  \"title\": \"Requisição inválida\",\n  \"type\": \"https://api.example.invalid/problems/validation-error\"\n}",
+              "body": "{\n  \"correlationId\": \"req-x\",\n  \"detail\": \"A validação da requisição falhou.\",\n  \"status\": 400,\n  \"title\": \"Requisição inválida\",\n  \"type\": \"https://api.example.invalid/problems/validation-error\"\n}",
               "code": 400,
               "header": [
                 {
@@ -1363,6 +1840,19 @@
       "description": "Limites por carteira e histórico de mudanças.",
       "item": [
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Tomadores elegíveis para uma oferta",
           "request": {
             "header": [],
@@ -1394,7 +1884,7 @@
           },
           "response": [
             {
-              "body": "{\n  \"data\": [\n    {\n      \"availableLimitCents\": \"15000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000002\",\n        \"name\": \"Banco Beta S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-26T12:12:00.000Z\",\n      \"observedBlock\": 9178460,\n      \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n    },\n    {\n      \"availableLimitCents\": \"8000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000003\",\n        \"name\": \"Banco Gama S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-29T07:09:00.000Z\",\n      \"observedBlock\": 9198545,\n      \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n    }\n  ],\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "body": "{\n  \"data\": [\n    {\n      \"availableLimitCents\": \"14900000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000002\",\n        \"name\": \"Banco Beta S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-29T12:00:00.000Z\",\n      \"observedBlock\": 9200001,\n      \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n    },\n    {\n      \"availableLimitCents\": \"8000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000003\",\n        \"name\": \"Banco Gama S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-29T07:09:00.000Z\",\n      \"observedBlock\": 9198545,\n      \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n    }\n  ],\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
               "code": 200,
               "header": [
                 {
@@ -1438,7 +1928,7 @@
               "status": "OK"
             },
             {
-              "body": "{\n  \"data\": [\n    {\n      \"availableLimitCents\": \"30000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000001\",\n        \"name\": \"Banco Alfa S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-27T12:07:00.000Z\",\n      \"observedBlock\": 9185635,\n      \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n    },\n    {\n      \"availableLimitCents\": \"15000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000002\",\n        \"name\": \"Banco Beta S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-26T12:12:00.000Z\",\n      \"observedBlock\": 9178460,\n      \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n    },\n    {\n      \"availableLimitCents\": \"8000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000003\",\n        \"name\": \"Banco Gama S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-29T07:09:00.000Z\",\n      \"observedBlock\": 9198545,\n      \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n    },\n    {\n      \"availableLimitCents\": \"5000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000004\",\n        \"name\": \"Banco Delta S.A. (fictício)\"\n      },\n      \"isRegistered\": false,\n      \"observedAt\": \"2026-09-25T12:00:00.000Z\",\n      \"observedBlock\": 9171200,\n      \"wallet\": \"0xd4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4\"\n    }\n  ],\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "body": "{\n  \"data\": [\n    {\n      \"availableLimitCents\": \"30000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000001\",\n        \"name\": \"Banco Alfa S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-27T12:07:00.000Z\",\n      \"observedBlock\": 9185635,\n      \"wallet\": \"0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\"\n    },\n    {\n      \"availableLimitCents\": \"14900000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000002\",\n        \"name\": \"Banco Beta S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-29T12:00:00.000Z\",\n      \"observedBlock\": 9200001,\n      \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n    },\n    {\n      \"availableLimitCents\": \"8000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000003\",\n        \"name\": \"Banco Gama S.A. (fictício)\"\n      },\n      \"isRegistered\": true,\n      \"observedAt\": \"2026-09-29T07:09:00.000Z\",\n      \"observedBlock\": 9198545,\n      \"wallet\": \"0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3\"\n    },\n    {\n      \"availableLimitCents\": \"5000000000\",\n      \"institution\": {\n        \"id\": \"b0000000-0000-4000-8000-000000000004\",\n        \"name\": \"Banco Delta S.A. (fictício)\"\n      },\n      \"isRegistered\": false,\n      \"observedAt\": \"2026-09-25T12:00:00.000Z\",\n      \"observedBlock\": 9171200,\n      \"wallet\": \"0xd4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4\"\n    }\n  ],\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
               "code": 200,
               "header": [
                 {
@@ -1470,6 +1960,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Detalhar limite",
           "request": {
             "header": [],
@@ -1488,7 +1991,7 @@
           },
           "response": [
             {
-              "body": "{\n  \"data\": {\n    \"availableLimitCents\": \"15000000000\",\n    \"institution\": {\n      \"id\": \"b0000000-0000-4000-8000-000000000002\",\n      \"name\": \"Banco Beta S.A. (fictício)\"\n    },\n    \"isRegistered\": true,\n    \"observedAt\": \"2026-09-26T12:12:00.000Z\",\n    \"observedBlock\": 9178460,\n    \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "body": "{\n  \"data\": {\n    \"availableLimitCents\": \"14900000000\",\n    \"institution\": {\n      \"id\": \"b0000000-0000-4000-8000-000000000002\",\n      \"name\": \"Banco Beta S.A. (fictício)\"\n    },\n    \"isRegistered\": true,\n    \"observedAt\": \"2026-09-29T12:00:00.000Z\",\n    \"observedBlock\": 9200001,\n    \"wallet\": \"0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2\"\n  },\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
               "code": 200,
               "header": [
                 {
@@ -1521,6 +2024,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Histórico de limite",
           "request": {
             "header": [],
@@ -1540,7 +2056,7 @@
           },
           "response": [
             {
-              "body": "{\n  \"data\": [\n    {\n      \"blockTimestamp\": \"2026-09-26T12:12:00.000Z\",\n      \"changeKind\": \"settlement\",\n      \"logIndex\": 1,\n      \"newLimitCents\": \"15000000000\",\n      \"offerId\": \"a0000000-0000-4000-8000-000000000001\",\n      \"previousLimitCents\": \"20000000000\",\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000b\"\n    },\n    {\n      \"blockTimestamp\": \"2026-09-20T13:10:00.000Z\",\n      \"changeKind\": \"admin_update\",\n      \"logIndex\": 0,\n      \"newLimitCents\": \"20000000000\",\n      \"offerId\": null,\n      \"previousLimitCents\": \"0\",\n      \"txHash\": \"0x7000000000000000000000000000000000000000000000000000000000000004\"\n    }\n  ],\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
+              "body": "{\n  \"data\": [\n    {\n      \"blockTimestamp\": \"2026-09-29T12:00:00.000Z\",\n      \"changeKind\": \"settlement\",\n      \"logIndex\": 1,\n      \"newLimitCents\": \"14900000000\",\n      \"offerId\": \"f0000000-0000-4000-8000-000000000006\",\n      \"previousLimitCents\": \"15000000000\",\n      \"txHash\": \"0xaf887dd486fbbb87ceec1c601c5334dbbcd17989a459c635fe5aa5d51daab66e\"\n    },\n    {\n      \"blockTimestamp\": \"2026-09-26T12:12:00.000Z\",\n      \"changeKind\": \"settlement\",\n      \"logIndex\": 1,\n      \"newLimitCents\": \"15000000000\",\n      \"offerId\": \"a0000000-0000-4000-8000-000000000001\",\n      \"previousLimitCents\": \"20000000000\",\n      \"txHash\": \"0x700000000000000000000000000000000000000000000000000000000000000b\"\n    },\n    {\n      \"blockTimestamp\": \"2026-09-20T13:10:00.000Z\",\n      \"changeKind\": \"admin_update\",\n      \"logIndex\": 0,\n      \"newLimitCents\": \"20000000000\",\n      \"offerId\": null,\n      \"previousLimitCents\": \"0\",\n      \"txHash\": \"0x7000000000000000000000000000000000000000000000000000000000000004\"\n    }\n  ],\n  \"meta\": {\n    \"source\": \"mock\"\n  }\n}",
               "code": 200,
               "header": [
                 {
@@ -1580,6 +2096,19 @@
       "description": "Processo e contrato da API.",
       "item": [
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Liveness",
           "request": {
             "header": [],
@@ -1623,6 +2152,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Readiness",
           "request": {
             "header": [],
@@ -1666,6 +2208,19 @@
           ]
         },
         {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status HTTP esperado\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "name": "Contrato OpenAPI",
           "request": {
             "header": [],
@@ -1728,6 +2283,14 @@
     {
       "key": "openOfferId",
       "value": "a0000000-0000-4000-8000-000000000008"
+    },
+    {
+      "key": "cancelOfferId",
+      "value": "a0000000-0000-4000-8000-000000000009"
+    },
+    {
+      "key": "mockOfferId",
+      "value": ""
     },
     {
       "key": "requestId",

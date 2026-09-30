@@ -6,142 +6,93 @@ Backend da PoC de crédito interfinanceiro (CDI) overnight — Banco Inter × In
 
 Bancos emprestam reservas entre si por um dia útil (overnight) para fechar o caixa dentro do mínimo regulatório. A taxa média dessas operações é o CDI. Hoje a negociação leva minutos e a liquidação leva horas, por conta de checagem manual de limite e conciliação. Nessa janela existe risco de contraparte: a operação foi combinada mas ainda não foi consumada.
 
-A PoC elimina essa janela. O contrato inteligente valida o limite e executa a troca — token de crédito de um lado, ativo de liquidação do outro — em uma única transação atômica (DvP, *delivery versus payment*). Ou as duas pernas acontecem, ou nenhuma.
+O objetivo da PoC é reduzir essa janela: o contrato inteligente valida o limite e executa a troca — posição de crédito CDIP e ativo de liquidação BRLt — em uma transação atômica (DvP, *delivery versus payment*). Essa propriedade do contrato não implica que o backend já esteja integrado ao fluxo.
 
-## Stack
+## Stack e alternativas
 
-| Camada | Escolha |
-|---|---|
-| Runtime | Node.js 24 LTS |
-| Linguagem | TypeScript, modo estrito |
-| HTTP | Fastify 5 |
-| Banco | PostgreSQL |
-| Acesso ao banco | `pg` + migrations SQL versionadas |
-| Leitura on-chain | `viem` (somente leitura) |
-| Rede | Sepolia (testnet) |
+| Camada | Escolha | Situação nesta base | Alternativa e trade-off |
+|---|---|---|---|
+| Runtime | Node.js 24 LTS, TypeScript estrito | API e testes executáveis (`package.json`, `.nvmrc`) | Java/Spring traz ecossistema corporativo maior, mas exige outra toolchain e mais configuração para esta PoC; Python/FastAPI facilita prototipagem, mas fragmentaria os tipos compartilhados com o cliente JS. Nenhum benchmark comparativo foi executado. |
+| HTTP | Fastify 5 com schemas e OpenAPI | Implementado em `src/app.ts` e `src/routes/` | Express tem ecossistema amplo, porém validação e OpenAPI precisariam de composição adicional nesta base. |
+| Persistência | PostgreSQL 16 no CI; `pg` e SQL versionado | Schema, runner e testes reais (`migrations/`, `src/db/migrate.ts`); **servidor ainda não conecta** | SQLite simplificaria instalação local, mas não exercitaria as mesmas constraints, locks e transações previstas para a projeção compartilhada. Um ORM acrescentaria mapeamentos a revisar para `numeric(78,0)` e chaves compostas; SQL direto mantém esses invariantes explícitos. |
+| Rede | Sepolia (testnet) | Apenas endereços e eventos sintéticos em fixtures | Rede permissionada mudaria as premissas de finalização e infraestrutura; está fora da PoC. |
+| Leitura on-chain | `viem` candidato | **Não instalado**; listener/RPC/ABI pendentes | `ethers` é opção viável; escolher após validar ABI, suporte a logs e requisitos de replay. |
 
-Sem ORM: a modelagem exige diagrama entidade-relacionamento explícito e migrations versionadas, e SQL puro deixa isso literal.
+Sem ORM e sem serviço de fila nesta etapa. `npm run db:migrate` só aplica o esquema ao `DATABASE_URL` fornecido; API, provas on-chain, autenticação e replay não decorrem da migration.
 
 ## Diagrama
 
 O diagrama de componentes fica no [README](../README.md#arquitetura), fonte única. Esta seção descreve o que ele mostra.
 
-O caminho de uma operação, do clique à tela:
+Fluxo **alvo**, não execução já disponível:
 
-1. O frontend registra a intenção na API, que grava a intenção como `pending` e devolve os argumentos normalizados (valor em centavos de BRLt, taxa em pontos-base do CDI, endereço do contrato). O contrato de cada rota está em [`api.md`](api.md).
-2. A carteira do operador monta e assina a chamada ao contrato. O backend não participa deste passo.
-3. O contrato valida o limite e executa o swap atômico na mesma transação.
-4. O contrato emite o evento. No ciclo seguinte de polling, o listener lê os logs pendentes e atualiza o Postgres.
-5. O frontend consulta a API periodicamente e exibe o estado indexado.
+1. O cliente prepara/assina uma transação em sua própria carteira, sem custódia do backend. Uma API futura autenticada pode persistir intenção e expor argumentos, mas os POSTs de intenção atuais são apenas desenvolvimento/teste e usam identidade autodeclarada.
+2. O contrato DvP valida registro, limite e saldo/allowance do ativo de liquidação; aceite e liquidação ocorrem na mesma transação.
+3. Um listener ainda a construir lê logs confirmados na Sepolia, detecta divergência de blocos, reprocessa projeções e avança o cursor em uma transação de banco.
+4. O cliente consulta a API para ver a projeção; hoje as leituras são fixtures e a simulação `/api/mock` muda só memória local.
 
 ## Componentes
 
-### Mesa de Operações (React)
+### Mesa de Operações (React, repositório externo)
 
-Exibe ofertas abertas, limites disponíveis e status das operações (RF04). Não decide nada: renderiza o que a API devolve. Descobre mudanças de status perguntando à API periodicamente.
+A interface não está integrada à API deste repositório. Apresentar estados e limites com identidade institucional verificável depende de um contrato de integração e de autenticação.
 
-### Carteira (MetaMask)
+### Carteira (externa)
 
-Guarda a chave privada do operador e assina as transações. É ela — não o backend — que chama o contrato. A interface precisa tratar três recusas comuns: assinatura negada, rede errada e saldo de gas insuficiente.
+O operador assina transações na carteira; o backend não guarda chaves nem transmite transações. A validação on-chain continua soberana, inclusive quando uma consulta local aprovar uma intenção.
 
-### API (Fastify)
+### API (Fastify, implementada)
 
-Rotas de oferta, aceite, cancelamento e histórico (RF05, RF06). As rotas de oferta e aceite **registram a intenção** e devolvem ao frontend o que ele precisa para montar a chamada ao contrato; elas não executam a operação. A execução é on-chain.
+Consultas e histórico em memória; comandos DvP fictícios sob `/api/mock` e intenções de assinatura sob `/api` só em `development`/`test`. Em `production`, nenhum POST é registrado. O cabeçalho de carteira é autodeclarado e não concede autorização.
 
-### Listener de eventos (viem)
+### Listener (não implementado)
 
-Lê os eventos do contrato na Sepolia por polling, com cursor, e grava o resultado no Postgres: status, hash da transação, número do bloco, timestamp, partes e taxa (RNF03). É a costura entre Web3 e Web2, e o componente mais crítico do backend.
+Deverá ler logs por intervalo de blocos, persistir eventos e projeções com cursor e tratar reorg. `GET /api/sync-status` expõe apenas um cursor sintético por enquanto.
 
-### PostgreSQL
+### PostgreSQL (esquema disponível, integração pendente)
 
-Contrapartes, limites, histórico de operações e o cursor de sincronização. É sempre um espelho atrasado da chain, nunca a fonte de verdade.
+As nove tabelas de domínio e `schema_migrations` existem depois da execução explícita do runner; nenhuma rota lê ou escreve nelas. O banco será um espelho da chain, sujeito a replay e correção de reorg.
 
 ### RPC provider
 
-Nó de terceiro (Alchemy/Infura) pelo qual frontend e listener alcançam a Sepolia.
+Um provedor Sepolia poderá atender o frontend e o futuro listener; o backend não configura nem usa RPC atualmente.
 
 ### Contratos (Solidity/Foundry)
 
-Contrato de liquidação DvP e token ERC-20 fictício representando o crédito. Fora do escopo deste repositório; o backend consome apenas o ABI publicado.
+Contrato DvP, BRLt ERC-20 de liquidação e posição CDIP ERC-721, em repositório externo; nenhuma chamada ABI/RPC é feita neste backend.
 
 ## Decisões
 
 ### O backend não assina transações
 
-`viem` é usado somente para leitura. Quem assina é a carteira do operador.
+`viem` é um candidato para leitura futura, não uma dependência instalada. O operador mantém a chave na própria carteira.
 
 Alternativa descartada: backend com chave custodial (relayer). Seria mais fácil de demonstrar, mas colocaria o backend no caminho crítico da liquidação e enfraqueceria o argumento central do projeto — a operação acontece no contrato, sem intermediário confiável.
 
-Consequência: o backend é fonte de verdade off-chain e indexador, nunca executor.
+Consequência: a chain é autoridade financeira; o backend será indexador e fonte de dados *off-chain* autorizada, não executor.
 
-### O listener é um cursor, não um watcher
+### Cursor, idempotência e reorg: desenho para o listener
 
-Um watcher (`watchContractEvent`) só entrega o que acontece enquanto está ligado. Qualquer parada — deploy, restart, oscilação de rede — perde os eventos daquele intervalo de forma definitiva.
+Um consumidor de eventos precisa recuperar intervalos perdidos após paradas. Polling com cursor persistido permite repetir um intervalo e confirmar avanços somente após a projeção do lote; WebSocket sem cursor não resolve perda de eventos. Isso ainda não está implementado nem medido.
 
-O listener guarda no Postgres o último bloco processado e, a cada ciclo, busca os logs do intervalo pendente:
+Para cada `(chain_id, contract_address, tx_hash, log_index)`, a projeção só deve aplicar o evento se o log foi inserido; evento, limite derivado, oferta/liquidação e cursor precisam compartilhar uma transação. A chave primária em `chain_events` sustenta idempotência de *logs idênticos*, mas **não** resolve reorg por si só.
 
-```
-ultimo = lê cursor do banco
-atual  = client.getBlockNumber()
-logs   = client.getLogs({ address, fromBlock: ultimo + 1, toBlock: atual })
-grava logs com UPSERT
-escreve cursor = atual
-```
+Um reorg substitui logs que podem ter o mesmo número de bloco e outro hash. A implementação precisará guardar hashes suficientes para uma janela de verificação, detectar divergência, reverter projeções afetadas e reproduzir o ramo canônico antes de avançar o cursor. A migration inicial guarda só o hash do cursor, não essa janela nem o algoritmo. Executar instâncias concorrentes do listener exigirá coordenação adicional; a chave idempotente sozinha não basta.
 
-Se o processo cair em qualquer ponto, ele recomeça do último bloco confirmado.
+## Orçamento de latência (RNF02: meta de 30 segundos)
 
-### A gravação é idempotente
-
-`UPSERT` por chave natural `(tx_hash, log_index)`. O mesmo evento será reprocessado — em restart, em retry do RPC, em reorg — e reprocessar não pode duplicar histórico.
-
-Efeito colateral relevante: idempotência é também o que permite rodar mais de uma instância do listener em paralelo, caso um dia seja preciso redundância.
-
-### Polling como gatilho, cursor como garantia
-
-O listener consulta o provedor em intervalos fixos e, em cada ciclo, busca os logs entre o último bloco confirmado e o bloco atual. O cursor só avança depois da gravação idempotente; uma parada é recuperada no ciclo seguinte.
-
-WebSocket foi descartado porque ainda exigiria o cursor para recuperar os eventos perdidos enquanto o canal estivesse fora. Polling deixa uma única forma de falha observável: o cursor deixa de avançar.
-
-O gatilho do ciclo fica isolado. Se o polling não sustentar o volume ou o SLO medido, a troca para WebSocket sobre o mesmo cursor não afeta a projeção dos eventos.
-
-### Sem proteção contra reorg
-
-A Sepolia pode reorganizar os últimos blocos. A proteção usual é processar com atraso de alguns blocos, ao custo de ~24s de latência adicional — o que estouraria o orçamento do RNF02.
-
-Mitigação adotada: o `block_number` é registrado em cada operação, permitindo auditoria posterior. O risco é aceito e documentado.
-
-## Orçamento de latência (RNF02: 30 segundos)
-
-| Etapa | Pior caso |
-|---|---|
-| Transação incluída em bloco (Sepolia) | ~12s |
-| Listener lê o intervalo pendente (polling) | até o intervalo do ciclo |
-| Gravação no Postgres | ~ms |
-| Frontend percebe a mudança (polling 3s) | 3s |
-| **Total** | **~15s** |
-
-A folga é de cerca de 15 segundos. Quase todo o orçamento é consumido pelo tempo de bloco da Sepolia, que não está sob controle do backend.
+`tempo até confirmação da transação + intervalo de polling do listener + escrita + polling do cliente` deve caber na meta de 30 s **se** a chain produzir blocos, o RPC estiver disponível e a política de reorg permitir. Os tempos da Sepolia são variáveis; uma janela de confirmação/replay consome parte do orçamento. Não há listener ou cliente integrado nesta base, portanto **nenhum SLO de ponta a ponta foi medido**. Medir distribuição de latências e atraso do cursor é pré-requisito para afirmar RNF02.
 
 ## Riscos conhecidos
 
-**O listener falha em silêncio.** Se ele parar, o sistema continua aparentemente funcionando: a chain avança, o banco congela, a interface mostra dados desatualizados sem indicar erro. Mitigação: registrar o timestamp da última sincronização e expô-lo na API, sinalizando na interface quando ultrapassar um minuto.
+**Dados fictícios confundidos com liquidação.** Sucessos HTTP marcam `mock`; hashes e links de explorer são sintéticos. Erros não carregam o marcador porque usam Problem Details.
 
-**Estado órfão.** A oferta é gravada como `ofertada` no passo 1, mas o operador pode não assinar no passo 3. Mitigação: estado `pendente` com validade, promovido a `ofertada` apenas quando o evento correspondente for indexado.
+**Identidade não verificada.** Cabeçalho de carteira e endereços no body são autodeclarados. POSTs não são registrados em `production`; não exponha `development` como serviço financeiro.
 
-**Limite de crédito em duas fontes.** O contrato valida um limite on-chain; o Postgres guarda outro para exibição. Divergência faz o aceite falhar sem explicação na interface. Exige definição, junto ao time de contratos, de quem sincroniza e com que frequência.
+**Projeção congelada ou divergente.** Sem listener e sem proteção de reorg, o status não acompanha a chain. A leitura de `sync-status` é simulada; alerta operacional real requer conectar e medir cursor/bloco.
 
-**Polling interrompido.** Se o ciclo parar, a chain avança enquanto o banco congela. Mitigação: expor o timestamp da última sincronização e alertar quando ele ultrapassar o limite operacional.
+**Limite em duas representações.** A chain decidirá o limite na execução; uma projeção atrasada pode sugerir aceite que será revertido. UI deve apresentar o erro e reconciliar estado.
 
 ## Caminho para produção
 
-As decisões acima são adequadas a uma PoC em testnet pública. Um sistema em produção no Inter partiria de premissas diferentes:
-
-**Nó próprio, não provedor de terceiro.** Infraestrutura de liquidação não depende de RPC externo. Com nó dedicado, desaparecem o rate limit, o custo por chamada e o limite de conexões simultâneas que um provedor compartilhado impõe.
-
-**Rede permissionada, não Sepolia.** Redes com finalização imediata (Besu/QBFT e similares) não sofrem reorg, o que elimina uma classe inteira de preocupações do indexador. A escolha da rede é objeto do benchmark entregue em paralelo a este repositório.
-
-**Conexão mais estável, mesmo desenho.** O cursor permanece obrigatório com nó dedicado; polling é o transporte atual e pode ser reavaliado com métricas de volume e latência.
-
-**Listener redundante.** Mais de uma instância, viável sem alteração de código graças à idempotência da gravação.
-
-**Indexer dedicado.** Com dezenas de contratos, o listener artesanal dá lugar a uma solução própria ou pronta (Ponder, Subsquid), com fila entre leitura e gravação, dead-letter e reprocessamento seletivo.
+Uma implantação fora da testnet exigiria outra revisão de ameaça, controle de identidade, nó/rede adequados, reconciliação e observabilidade. Não há suporte a produção financeira neste repositório. Escalar para múltiplos contratos ou listener redundante depende primeiro de medir volume, consistência e comportamento sob reorg.

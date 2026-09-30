@@ -32,7 +32,7 @@ export async function registerOperationRoutes(
     {
       schema: {
         description:
-          "Histórico de operações liquidadas (RF05), mais recentes primeiro. Cada item é o comprovante da liquidação DvP.",
+          "Histórico de operações fictícias (fixtures ou simulação), mais recentes primeiro; hashes não provam liquidação real.",
         operationId: "listOperations",
         querystring: listQuery,
         response: { 200: listEnvelope("Operation"), ...errorResponses(400) },
@@ -56,7 +56,8 @@ export async function registerOperationRoutes(
     "/api/operations/:txHash",
     {
       schema: {
-        description: "Comprovante de uma operação pelo hash da liquidação.",
+        description:
+          "Comprovante fictício por hash sintético, sem prova on-chain.",
         operationId: "getOperation",
         params: txHashParams,
         response: {

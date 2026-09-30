@@ -1,6 +1,6 @@
 {
   "name": "backend-banco-inter",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -27,6 +27,8 @@
     "openapi:validate": "npm run build && node --test dist/test/openapi.test.js",
     "coverage:lcov": "npm run build && node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=dist/lcov.info dist/test/*.test.js",
     "start": "node dist/src/server.js",
+    "db:migrate": "npm run build && node dist/scripts/migrate.js",
+    "test:db": "npm run build && node -e \"if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required')\" && node --test dist/test/migrations.test.js",
     "docs:export": "npm run build && node dist/scripts/export-docs.js",
     "format": "biome format --write .",
     "format:check": "biome format .",
@@ -35,12 +37,14 @@
   "dependencies": {
     "@fastify/swagger": "^9.8.1",
     "@fastify/swagger-ui": "^6.1.1",
-    "fastify": "^5.12.5"
+    "fastify": "^5.12.5",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^13.0.0",
     "@biomejs/biome": "^2.5.14",
     "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
     "typescript": "^7.0.2"
   }
 }

@@ -1,6 +1,6 @@
-# API — referência completa (v0.2.0, mock)
+# API — referência HTTP (v0.3.0, dados fictícios)
 
-Contrato HTTP entre o backend e a Mesa de Operações. Nesta versão **todas as respostas de `/api/*` são fictícias**, mas o formato já é o final: quando os mocks saírem, muda a origem dos dados, não o payload.
+Contrato da API para a PoC. Leituras e comandos de simulação usam fixtures em memória; **não há conexão do servidor com PostgreSQL, RPC ou listener**. O payload de integração real poderá mudar após autenticação e validação com o frontend/Web3. `production` registra apenas GETs; a coleção e o OpenAPI exportados representam `development`.
 
 | Artefato | Para quê |
 | --- | --- |
@@ -9,9 +9,9 @@ Contrato HTTP entre o backend e a Mesa de Operações. Nesta versão **todas as 
 | `GET /docs` | Swagger UI com a API rodando |
 | `GET /openapi.json` | O mesmo contrato servido pela aplicação |
 
-Os dois arquivos são gerados pela própria API (`npm run docs:export`). Um teste falha se `docs/openapi.json` ficar diferente do contrato servido ou se a coleção deixar de cobrir alguma rota.
+Os arquivos são gerados pela própria API (`npm run docs:export` no ambiente `development`). Um teste compara o OpenAPI exportado ao servido nesse ambiente e verifica a cobertura de rotas pela coleção.
 
-**Alinhamento:** contrato `CreditInterbankOffer` da branch `develop` do repositório de contratos (commit `b68cf40`) e esquema de [`migrations/001_initial_schema.sql`](../migrations/001_initial_schema.sql).
+**Alinhamento preliminar:** contrato `CreditInterbankOffer` da branch `feat/escopo-reduzido-dvp` do repositório de contratos (commit `b68cf40`) e esquema de [`migrations/001_initial_schema.sql`](../migrations/001_initial_schema.sql). A ABI final e o deploy não foram verificados.
 
 ---
 
@@ -31,53 +31,12 @@ Os dois arquivos são gerados pela própria API (`npm run docs:export`). Um test
 
 ## 1. Como a API funciona
 
-A API **não assina nem envia transações**. Leituras vêm do Postgres (hoje, do mock). Escritas são **intenções**: a API valida o pedido com as mesmas regras do contrato e devolve `contractCall`, que o frontend passa para a carteira.
+A API não assina nem envia transações. Os GETs leem dados fictícios. Dois fluxos distintos só existem em `development`/`test`:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant FE as Frontend
-    participant API as API
-    participant W as Carteira
-    participant C as Contrato (Sepolia)
-    participant L as Listener
-    participant DB as Postgres
+- **`POST /api/mock/offers...`** atualiza ofertas, histórico, limites e operações **somente nesta instância em memória**, com hashes e blocos sintéticos. `lenderWallet` é autodeclarado; estas rotas não autentificam carteira nem substituem uma transação.
+- **`POST /api/offers...`** devolve uma intenção `pending` e `contractCall`; `POST .../submission` só registra o hash informado pelo chamador. Essas ações **não** criam, liquidam ou alteram ofertas. Sem listener, intenções `submitted` não chegam a `confirmed` e as listas não são atualizadas.
 
-    FE->>API: POST /api/offers (X-Wallet-Address)
-    API-->>FE: 202 TransactionRequest (pending + contractCall)
-    FE->>W: writeContract(contractCall)
-    W->>C: transação assinada
-    W-->>FE: txHash
-    FE->>API: POST /api/transaction-requests/{id}/submission { txHash }
-    API-->>FE: 200 TransactionRequest (submitted)
-    C-->>L: evento (OfferCreated, OfferSettled...)
-    L->>DB: grava oferta, operação e limite
-    FE->>API: GET /api/offers, /api/operations...
-    API->>DB: consulta
-```
-
-Os passos 8 e 9 são do listener e ainda não existem. Na versão mock, a intenção fica em `submitted` e as listas não mudam.
-
-Exemplo com viem/wagmi, usando a resposta da intenção:
-
-```ts
-const { contractCall } = intent.data;
-const hash = await walletClient.writeContract({
-  abi: creditInterbankOfferAbi,
-  address: contractCall.contractAddress,
-  functionName: contractCall.functionName,
-  // endereços ficam como string; inteiros viram BigInt
-  args: contractCall.args.map((a) => (a.startsWith("0x") ? a : BigInt(a))),
-  chainId: contractCall.chainId,
-});
-await fetch(`/api/transaction-requests/${intent.data.id}/submission`, {
-  method: "POST",
-  headers: { "content-type": "application/json", "x-wallet-address": account },
-  body: JSON.stringify({ txHash: hash }),
-});
-```
-
-Para o aceite funcionar, a carteira do **ofertante** precisa ter dado `approve` do BRLt para o contrato (valor ≥ `amountCents`) e ter esse saldo. O melhor momento é logo depois de criar a oferta. A API não checa isso; se faltar, `acceptOffer` reverte e a oferta continua `offered`.
+O fluxo de carteira, contrato, listener e PostgreSQL é **arquitetura alvo**, não comportamento implementado nesta versão. Uma integração futura exige autorização de carteira/instituição e verificação do ABI/endereço implantado antes de construir qualquer chamada real. Não use os endereços/hash das fixtures para enviar uma transação. Na execução on-chain, o ofertante precisará ter BRLt e allowance suficientes; o backend mock não checa saldo nem aprovação.
 
 ---
 
@@ -113,7 +72,7 @@ Respostas de erro **não** têm envelope nem `X-Data-Source` (veja [Erros](#3-er
 
 ### Identificação da carteira
 
-Rotas `POST` exigem o cabeçalho **`X-Wallet-Address`** com a carteira que vai assinar. É provisório: ainda não há autenticação, então a API confia no cabeçalho. Antes de ligar ao Postgres ele será trocado por login assinado (SIWE). O formato das respostas não muda.
+Só os POSTs de **intenção** exigem `X-Wallet-Address`; trata-se de texto autodeclarado, não prova de posse da chave nem controle de acesso. As rotas `/api/mock` não recebem identidade: exercitam somente transições fictícias. Todos os POSTs retornam 404 e são omitidos do OpenAPI servido em `production`. Nunca exponha esses comandos como API financeira real.
 
 ### Paginação
 
@@ -141,26 +100,17 @@ Formato [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457), `Content-Type: appli
 
 Use `type` (ou o final dele) para decidir o que mostrar; `detail` é texto para pessoas e pode mudar. `correlationId` é o id da requisição no log.
 
-| Status | `type` (final da URI) | Quando | Espelha no contrato |
-| --- | --- | --- | --- |
-| 400 | `validation-error` | Parâmetro, cabeçalho ou corpo inválido; JSON malformado | `InvalidOfferParameters`, `InvalidValidityWindow` |
-| 403 | `not-registered-institution` | Carteira do `X-Wallet-Address` não cadastrada ou revogada | `NotRegisteredInstitution` |
-| 403 | `not-eligible-borrower` | Aceitar ou rejeitar sem ser o tomador | `NotEligibleBorrower` |
-| 403 | `not-offer-owner` | Cancelar sem ser o ofertante | `NotOfferOwner` |
-| 403 | `not-request-owner` | Informar hash de intenção de outra carteira | — |
-| 404 | `not-found` | Oferta, operação, carteira, intenção ou rota inexistente | `OfferNotFound` |
-| 409 | `invalid-offer-status` | Oferta já liquidada, cancelada, rejeitada ou expirada on-chain | `InvalidOfferStatus` |
-| 409 | `offer-expired` | Oferta `offered` com `expiresAt` vencido | `OfferHasExpired` |
-| 409 | `request-in-progress` | Já existe intenção `pending`/`submitted` para a mesma ação na mesma oferta | — |
-| 409 | `invalid-request-status` | Hash informado para intenção que não está `pending` | — |
-| 409 | `request-expired` | Hash informado depois de `expiresAt` da intenção | — |
-| 409 | `duplicate-transaction` | Hash já usado em outra intenção | — |
-| 422 | `invalid-counterparty` | Tomador igual ao ofertante | `InvalidCounterparty` |
-| 422 | `not-registered-institution` | Tomador (ou ofertante, no aceite) não cadastrado | `NotRegisteredInstitution` |
-| 422 | `insufficient-limit` | Limite do tomador menor que o valor | `InsufficientLimit` |
-| 500 | `internal-error` | Falha inesperada; sem detalhes internos | — |
+| Status | `type` (final da URI) | Quando |
+| --- | --- | --- |
+| 400 | `validation-error`, `invalid-amount`, `invalid-expiry`, `invalid-counterparty` | Schema inválido, valor acima de uint256, data fora do alcance do simulador ou partes iguais/nulas |
+| 403 | `not-registered-institution`, `not-eligible-borrower`, `not-offer-owner`, `not-request-owner` | **Somente intenção:** carteira declarada não satisfaz a checagem feita sobre as fixtures; não comprova identidade |
+| 404 | `not-found` | Recurso/rota inexistente, inclusive qualquer POST em `production` |
+| 409 | `invalid-offer-status`, `offer-expired`, `request-in-progress`, `invalid-request-status`, `request-expired`, `duplicate-transaction` | Estado terminal, vencimento ou duplicidade |
+| 422 | `not-registered-institution`, `invalid-counterparty`, `insufficient-limit` | Contraparte não cadastrada ou limite fictício insuficiente |
+| 503 | `mock-store-full`, `request-store-full` | Máximo de 100 ofertas (incluindo fixtures) ou 100 intenções por instância |
+| 500 | `internal-error` | Falha inesperada sem detalhes internos |
 
-A API antecipa esses erros para a interface avisar antes da assinatura, mas o contrato continua sendo a fonte de verdade: a transação pode reverter mesmo com a intenção aceita (por exemplo, se o limite mudar entre a intenção e o aceite).
+As validações de intenção evitam erros evidentes, mas não provam autorização ou sucesso de uma transação. Na simulação, um conflito ou erro não altera eventos, limite ou estado.
 
 ---
 
@@ -168,17 +118,21 @@ A API antecipa esses erros para a interface avisar antes da assinatura, mas o co
 
 | Método | Caminho | Descrição | Sucesso |
 | --- | --- | --- | --- |
-| GET | `/api/deployment` | Rede e endereços dos contratos | 200 `Deployment` |
-| GET | `/api/sync-status` | Atraso do listener | 200 `SyncStatus` |
+| GET | `/api/deployment` | Endereços sintéticos das fixtures | 200 `Deployment` |
+| GET | `/api/sync-status` | Cursor fictício, sem listener | 200 `SyncStatus` |
 | GET | `/api/offers` | Listar ofertas | 200 `Offer[]` paginado |
 | POST | `/api/offers` | Intenção de criar oferta | 202 `TransactionRequest` |
 | GET | `/api/offers/{id}` | Detalhar oferta | 200 `Offer` |
-| GET | `/api/offers/{id}/events` | Histórico on-chain da oferta | 200 `ChainEvent[]` |
+| GET | `/api/offers/{id}/events` | Histórico sintético da oferta | 200 `ChainEvent[]` |
 | POST | `/api/offers/{id}/accept` | Intenção de aceitar | 202 `TransactionRequest` |
 | POST | `/api/offers/{id}/reject` | Intenção de rejeitar | 202 `TransactionRequest` |
 | POST | `/api/offers/{id}/cancel` | Intenção de cancelar | 202 `TransactionRequest` |
 | GET | `/api/transaction-requests/{id}` | Consultar intenção | 200 `TransactionRequest` |
 | POST | `/api/transaction-requests/{id}/submission` | Informar hash assinado | 200 `TransactionRequest` |
+| POST | `/api/mock/offers` | Criação de oferta fictícia no store | 201 `{ offer, operation: null }` |
+| POST | `/api/mock/offers/{id}/accept` | Aceite e liquidação fictícios atômicos | 200 `{ offer, operation }` |
+| POST | `/api/mock/offers/{id}/reject` | Rejeição fictícia | 200 `{ offer, operation: null }` |
+| POST | `/api/mock/offers/{id}/cancel` | Cancelamento fictício | 200 `{ offer, operation: null }` |
 | GET | `/api/operations` | Operações liquidadas | 200 `Operation[]` paginado |
 | GET | `/api/operations/{txHash}` | Comprovante da operação | 200 `Operation` |
 | GET | `/api/credit-limits` | Limites por carteira | 200 `CreditLimit[]` |
@@ -193,7 +147,7 @@ A API antecipa esses erros para a interface avisar antes da assinatura, mas o co
 
 #### `GET /api/deployment`
 
-Endereços para montar chamadas e conferir a rede da carteira (`chainId` 11155111 = Sepolia).
+Endereços sintéticos de fixtures e `chainId` ficticiamente marcado como 11155111 (Sepolia). **Não use para montar chamadas reais nem para inferir que os contratos foram implantados.**
 
 ```json
 {
@@ -212,7 +166,7 @@ Endereços para montar chamadas e conferir a rede da carteira (`chainId` 1115511
 
 #### `GET /api/sync-status`
 
-Último bloco indexado e atraso. Quando `stale` for `true` (mais de 60 s sem sincronizar), a interface deve avisar que os dados podem estar desatualizados.
+Bloco e atraso **sintéticos**, sem listener. `stale` só reflete tempo decorrido desde o cursor fictício; não monitora a Sepolia nem prova atualização da API.
 
 ```json
 {
@@ -296,7 +250,7 @@ Erros: 400 (id não é UUID), 404.
 
 #### `GET /api/offers/{id}/events`
 
-Histórico on-chain da oferta em ordem de bloco e `logIndex`. Numa liquidação, `OfferAccepted` e `OfferSettled` têm o mesmo `txHash` (logs 0 e 1). `args` traz os argumentos do evento como strings.
+Histórico fictício da oferta em ordem de bloco e `logIndex`. Na simulação do aceite, `OfferAccepted` e `OfferSettled` compartilham o mesmo hash sintético (logs 0 e 1); `args` usa strings.
 
 ```json
 {
@@ -333,7 +287,7 @@ Intenção de criar uma oferta **direcionada**. Cabeçalho `X-Wallet-Address` = 
 }
 ```
 
-O contrato exige só valores > 0; os limites máximos acima são proteção da API contra erro de digitação.
+Os tetos de taxa, prazo e janela acima são uma escolha da rota de intenção para dados de demonstração, **não** limites impostos pelo Solidity. `amountCents` aceita string decimal positiva até `2^256−1` (até 78 dígitos), mas o limite fictício do tomador continua sendo revalidado.
 
 Resposta **202**:
 
@@ -368,7 +322,7 @@ Resposta **202**:
 }
 ```
 
-A oferta **não** aparece em `GET /api/offers` até o listener indexar `OfferCreated`. Para achar o tomador, use `GET /api/credit-limits?registered=true&minAvailableCents=<valor>&excludeWallet=<minha>`.
+A intenção não altera `GET /api/offers` sem listener. Para achar o tomador fictício, use `GET /api/credit-limits?registered=true&minAvailableCents=<valor>&excludeWallet=<minha>`.
 
 Erros: 400, 403 `not-registered-institution`, 422 `invalid-counterparty` / `not-registered-institution` / `insufficient-limit`.
 
@@ -406,6 +360,27 @@ Resposta 200: a intenção com `status: "submitted"`, `txHash` e `submittedAt`.
 
 Erros: 400, 403 `not-request-owner`, 404, 409 (`invalid-request-status`, `request-expired`, `duplicate-transaction`).
 
+### Simulação DvP (`development`/`test` somente)
+
+`POST /api/mock/offers` recebe:
+
+```json
+{
+  "lenderWallet": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+  "borrowerWallet": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+  "amountCents": "100000000",
+  "rateCdiBps": 10500,
+  "termDays": 1,
+  "validitySeconds": 3600
+}
+```
+
+Retorna 201 com `{ data: { offer: Offer, operation: null }, meta: { source: "mock" } }`. Ofertante e tomador são apenas endereços fictícios escolhidos no body, diferentes e cadastrados nas fixtures. `amountCents` é decimal canônico > 0 e ≤ `2^256−1`; taxa, prazo e validade são inteiros positivos seguros em JavaScript. Datas além do ano 9999 são rejeitadas por limitação de representação do mock. Criação não debita limite.
+
+`POST /api/mock/offers/{id}/accept`, `/reject` e `/cancel` não recebem body nem cabeçalho de identidade. Só uma oferta `offered` e não vencida aceita uma transição. O aceite revalida registro e limite do tomador, debita-o e devolve `{ offer: Offer, operation: Operation }` com `OfferAccepted` e `OfferSettled` no **mesmo hash sintético**; rejeição/cancelamento devolvem `operation: null` e não debitam limite. `GET /api/offers/{id}`, `/events`, `/api/operations/{txHash}` e `/api/credit-limits/{wallet}/history` mostram o novo estado na mesma instância. `expiresAt <= now` dá 409; ler uma oferta vencida não inventa evento `OfferExpired`. Repetir ação terminal também dá 409.
+
+O teto por instância é 100 ofertas incluindo nove fixtures; quando cheio, retorna 503 sem alterar o estado. Não há persistência, autenticação, rate limiting ou transferência real. Cada reinício restaura as fixtures. O OpenAPI servido em `production` omite os quatro POSTs.
+
 ### Operações
 
 #### `GET /api/operations`
@@ -414,7 +389,7 @@ Operações liquidadas (RF05), mais recentes primeiro. Query: `wallet` (ofertant
 
 #### `GET /api/operations/{txHash}`
 
-O comprovante da liquidação DvP (RNF03): partes, valor, taxa, prazo, horário, bloco, hash e NFT de posição.
+Comprovante **fictício**, com partes, valor, taxa, prazo, horário, bloco, hash sintético e NFT de posição representado no mock. Não comprova liquidação na Sepolia.
 
 ```json
 {
@@ -439,9 +414,9 @@ O comprovante da liquidação DvP (RNF03): partes, valor, taxa, prazo, horário,
 }
 ```
 
-O hash é aceito em qualquer caixa. Erros: 400, 404.
+O hash sintético é aceito em qualquer caixa. Erros: 400, 404.
 
-> Quando houver autenticação, operações liquidadas só serão listadas para o ofertante e o tomador. A chain continua pública; a restrição vale só para a API.
+> A restrição futura a participantes autenticados ainda depende de política aprovada e implementação de autenticação; hoje o histórico fictício é público na API.
 
 ### Limites
 
@@ -451,17 +426,17 @@ Limites por carteira, maior primeiro (RF04). Lista inteira, sem paginação.
 
 | Query | Tipo | Descrição |
 | --- | --- | --- |
-| `registered` | boolean | `true`: só carteiras autorizadas |
+| `registered` | boolean | `true`: só carteiras cadastradas nas fixtures |
 | `minAvailableCents` | string | Limite disponível ≥ valor |
 | `excludeWallet` | endereço | Tira uma carteira da lista (a do operador) |
 
 #### `GET /api/credit-limits/{wallet}`
 
-Uma `CreditLimit`. Carteira revogada continua com o limite on-chain, mas `isRegistered: false`.
+Uma `CreditLimit`. Uma carteira revogada nas fixtures mantém seu limite fictício, mas tem `isRegistered: false`.
 
 #### `GET /api/credit-limits/{wallet}/history`
 
-Mudanças de limite, mais recentes primeiro. `admin_update` vem de `CreditLimitUpdated`; `settlement` é o débito feito pela liquidação (o contrato não emite evento de limite nesse caso; o listener deriva de `OfferSettled`).
+Mudanças fictícias de limite, mais recentes primeiro. `admin_update` representa `CreditLimitUpdated`; `settlement` é o débito associado a `OfferSettled` no simulador (o contrato não emite evento de limite nesse débito).
 
 ```json
 {
@@ -515,7 +490,7 @@ Campos que podem ser `null` sempre vêm presentes (nunca omitidos).
 | `offered` | 0 | Aberta, dentro da validade | — |
 | `settled` | 2 | Aceita e liquidada na mesma transação | `OfferSettled` |
 | `cancelled` | 3 | Retirada pelo ofertante | `OfferCancelled` |
-| `expired` | 4 | Vencida e gravada on-chain | `OfferExpired` |
+| `expired` | 4 | Vencida com evento sintético `OfferExpired` na fixture | `OfferExpired` |
 | `expired` | 0 | Vencida, mas ninguém chamou `expireOffer` | — |
 | `rejected` | 5 | Recusada pelo tomador | `OfferRejected` |
 
@@ -559,16 +534,16 @@ Os horários são relativos ao momento em que a API sobe, então sempre há ofer
 | 8 | Alfa → Beta | R$ 40 mi | 105% | `offered` (vence ~50 min após subir) |
 | 9 | Gama → Alfa | R$ 15 mi, 2 dias | 103,5% | `offered` (vence ~55 min após subir) |
 
-O id da oferta N na API é `a0000000-0000-4000-8000-00000000000N`. As intenções ficam em memória e somem ao reiniciar.
+O id da oferta N na API é `a0000000-0000-4000-8000-00000000000N`. Comandos `/api/mock` adicionam ofertas além das nove fixtures até o teto de 100; intenções não alteram a lista. Tudo se perde ao reiniciar.
 
 ---
 
 ## 8. Usando a coleção
 
-1. Suba a API: `npm run build && npm run start` (padrão `http://127.0.0.1:3000`).
+1. Suba a API em modo local explícito: `npm run build && NODE_ENV=development npm run start` (padrão `http://127.0.0.1:3000`). Sem `NODE_ENV`, o servidor sobe em `production` e só oferece GETs.
 2. No Postman: **Import** → `docs/collection/backend-banco-inter.postman_collection.json`. Bruno e Insomnia também importam coleções Postman v2.1.
-3. Variáveis da coleção: `baseUrl`, `lenderWallet` (Alfa), `borrowerWallet` (Beta), `openOfferId` (oferta 8), `settledOfferId` (oferta 1), `settledTxHash` e `requestId`.
-4. Rode **Ofertas → Criar oferta (intenção)** antes de **Intenções**: o script de teste guarda o id em `requestId`.
+3. Variáveis: `baseUrl`, `lenderWallet` (Alfa), `borrowerWallet` (Beta), `openOfferId`, `cancelOfferId`, `settledOfferId`, `settledTxHash`, `requestId` e `mockOfferId`.
+4. Rode **Simulação DvP → Criar oferta fictícia** para preencher `mockOfferId`, depois **Aceitar oferta fictícia**; consultar oferta, eventos, limites e operação reflete o novo estado até reiniciar. Rode **Ofertas → Criar oferta (intenção)** para preencher `requestId` antes de **Intenções**. Esses comandos só existem no ambiente `development`/`test`.
 
 Cada requisição traz exemplos salvos (sucesso e erros comuns), então dá para ler as respostas sem subir a API.
 
@@ -580,15 +555,6 @@ npm run docs:export
 
 ---
 
-## 9. O que muda quando os mocks saírem
+## 9. Limites e integração futura
 
-| Hoje (mock) | Depois (Postgres + listener) |
-| --- | --- |
-| `X-Data-Source: mock`, `meta.source: "mock"` | Cabeçalho e `source` saem, ou `source` muda de valor |
-| `X-Wallet-Address` sem prova | Sessão com login assinado (SIWE) |
-| Intenções só chegam a `submitted` | `confirmed` / `failed` pelo listener |
-| Criar ou aceitar não altera as listas | Oferta, operação e limite aparecem após o evento |
-| Operações visíveis para qualquer um | Só para ofertante e tomador autenticados |
-| `/ready` sem dependências | Lista o Postgres |
-
-Os formatos de `data`, os códigos HTTP e os `type` de erro ficam iguais.
+O schema e o runner PostgreSQL estão disponíveis, mas as rotas ainda não persistem dados. Não existe fonte confiável de identidade, confirmação on-chain, prova de reserva, listener, política implementada de reorg ou isolamento institucional na API. Antes de abandonar os mocks, frontend e backend precisam acordar contrato de autenticação, rastreabilidade, versão do ABI, medição de latência e semântica de falha. A mudança para uma API financeira não preserva necessariamente os códigos ou campos atuais.

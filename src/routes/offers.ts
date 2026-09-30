@@ -104,21 +104,21 @@ const actions = [
   {
     action: "accept_offer",
     description:
-      "Registra a intenção do tomador de aceitar. A API antecipa as checagens do contrato (oferta aberta, carteira tomadora, as duas partes cadastradas e limite suficiente). O aceite e a liquidação DvP acontecem na mesma transação on-chain.",
+      "Em development/test, cria uma intenção fictícia para a carteira informada em X-Wallet-Address; compara essa carteira ao tomador da fixture e checa o limite mock. Não autentica nem liquida.",
     path: "accept",
     summary: "Aceitar oferta (intenção)",
   },
   {
     action: "reject_offer",
     description:
-      "Registra a intenção do tomador de recusar a oferta antes do vencimento. Estado final on-chain: rejected.",
+      "Em development/test, registra intenção fictícia de rejeitar; compara a carteira declarada ao tomador, sem alterar a oferta.",
     path: "reject",
     summary: "Rejeitar oferta (intenção)",
   },
   {
     action: "cancel_offer",
     description:
-      "Registra a intenção do ofertante de retirar a oferta antes do aceite e do vencimento. Estado final on-chain: cancelled.",
+      "Em development/test, registra intenção fictícia de cancelar; compara a carteira declarada ao ofertante, sem alterar a oferta.",
     path: "cancel",
     summary: "Cancelar oferta (intenção)",
   },
@@ -126,14 +126,14 @@ const actions = [
 
 export async function registerOfferRoutes(
   app: FastifyInstance,
-  { store }: { store: MockStore },
+  { store, enableIntents }: { store: MockStore; enableIntents: boolean },
 ): Promise<void> {
   app.get<{ Querystring: ListQuery }>(
     "/api/offers",
     {
       schema: {
         description:
-          "Ofertas confirmadas on-chain, mais recentes primeiro. Use wallet + role para a mesa de um banco e status=offered para as ofertas abertas.",
+          "Ofertas fictícias da instância, mais recentes primeiro. Use wallet + role e status=offered para filtrar fixtures e ofertas simuladas.",
         operationId: "listOffers",
         querystring: listQuery,
         response: { 200: listEnvelope("Offer"), ...errorResponses(400) },
@@ -181,7 +181,7 @@ export async function registerOfferRoutes(
     {
       schema: {
         description:
-          "Histórico on-chain da oferta em ordem de bloco e log: OfferCreated, OfferAccepted, OfferSettled, OfferRejected, OfferCancelled ou OfferExpired.",
+          "Histórico sintético da oferta em ordem de bloco e log, sem indexação on-chain.",
         operationId: "listOfferEvents",
         params: offerIdParams,
         response: {
@@ -195,6 +195,7 @@ export async function registerOfferRoutes(
     async (request, reply) =>
       sendData(reply, store.offerEvents(request.params.id)),
   );
+  if (!enableIntents) return;
 
   app.post<{ Body: CreateBody; Headers: WalletHeader }>(
     "/api/offers",
@@ -202,12 +203,12 @@ export async function registerOfferRoutes(
       schema: {
         body: createBody,
         description:
-          "Registra a intenção de criar uma oferta direcionada e devolve contractCall para a carteira assinar. A oferta só aparece em GET /api/offers depois que o listener indexar OfferCreated. A API antecipa as checagens do contrato: ofertante e tomador cadastrados, partes diferentes e limite do tomador >= amountCents.",
+          "Em development/test, devolve uma intenção fictícia e contractCall com endereços sintéticos; X-Wallet-Address não autentica. A oferta não entra na lista. Nenhum listener existe para confirmar a transação.",
         headers: walletHeaderSchema,
         operationId: "createOfferIntent",
         response: {
           202: intentResponse,
-          ...errorResponses(400, 403, 422),
+          ...errorResponses(400, 403, 422, 503),
         },
         summary: "Criar oferta (intenção)",
         tags: ["ofertas"],
@@ -253,7 +254,7 @@ export async function registerOfferRoutes(
           params: offerIdParams,
           response: {
             202: intentResponse,
-            ...errorResponses(400, 403, 404, 409, 422),
+            ...errorResponses(400, 403, 404, 409, 422, 503),
           },
           summary,
           tags: ["ofertas"],

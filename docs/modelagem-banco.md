@@ -1,6 +1,6 @@
 # Modelo de dados — contrato DvP
 
-Modelo para a PoC em Sepolia, baseado no **Guia de modelagem para o backend — contrato DvP** (equipe Web3, 28/09/2026) e na interface/implementação da branch [`feat/escopo-reduzido-dvp`](https://github.com/anacampos-crypto/projeto-inter-web3/tree/b68cf40732519c8b0eae2d300644676f75a95016). A [migration inicial](../migrations/001_initial_schema.sql) cria o esquema; a API e o listener ainda usam mocks/não foram ligados ao PostgreSQL.
+Modelo para a PoC em Sepolia, baseado no **Guia de modelagem para o backend — contrato DvP** e na interface/implementação da branch [`feat/escopo-reduzido-dvp`](https://github.com/anacampos-crypto/projeto-inter-web3/tree/b68cf40732519c8b0eae2d300644676f75a95016). [`migrations/001_initial_schema.sql`](../migrations/001_initial_schema.sql) define o esquema e `npm run db:migrate` o aplica ao `DATABASE_URL` informado. A API e o listener **não** usam PostgreSQL nesta versão; todas as leituras e simulações HTTP ainda são em memória.
 
 ```mermaid
 erDiagram
@@ -26,6 +26,7 @@ erDiagram
 | `settlements` | Uma liquidação DvP por oferta, com hash, bloco, horário e `position_token_id` do NFT CDIP. |
 | `transaction_requests` | Intenções da API ainda não confirmadas on-chain; incluem criar, aceitar, rejeitar e cancelar. |
 | `sync_cursors` | Último bloco processado pelo listener, por contrato implantado. |
+| `schema_migrations` | Histórico técnico do runner (`nome`, checksum SHA-256, data de aplicação); criado e atualizado sob advisory lock. Não é entidade do domínio DvP. |
 
 ## Unidades e estados
 
@@ -34,7 +35,7 @@ erDiagram
 - Inteiros do ABI (`uint256`) usam `numeric(78,0)`; endereços e hashes completos são normalizados para hexadecimal minúsculo. Horários Unix do contrato/bloco viram `timestamptz`.
 - `offers.status` guarda os números estáveis do contrato: `0 Offered`, `2 Settled`, `3 Cancelled`, `4 Expired`, `5 Rejected`. `1 Accepted` aparece em `chain_events`, mas não como estado persistido: o aceite e a liquidação ocorrem na mesma transação.
 
-## Projeção pelo listener
+## Projeção planejada pelo listener
 
 1. Processar somente logs de `CreditInterbankOffer`, em ordem de bloco/log; inserir `chain_events` com `ON CONFLICT DO NOTHING`. Aplicar a projeção **somente se o log foi inserido**. Atualizar `sync_cursors` na mesma transação SQL. Em reorg, comparar `block_hash`; o tratamento de rollback ainda precisa ser implementado.
 2. `InstitutionRegistered`/`InstitutionRevoked` alteram `contract_wallet_state.is_registered`. `CreditLimitUpdated` substitui o limite e gera histórico. `OfferCreated` cria `offers` com horário do bloco. `OfferRejected`, `OfferCancelled` e `OfferExpired` encerram a oferta.
@@ -46,6 +47,6 @@ erDiagram
 - Antes de criar a oferta, listar **outras** carteiras cadastradas com `available_limit_cents >= amount_cents`; o contrato revalida esse limite na criação e no aceite.
 - Listagens de ofertas liquidadas devem retornar a oferta apenas para ofertante e tomador **após autenticar a carteira**. A Sepolia continua pública; essa regra limita somente a API. A autenticação ainda não existe no backend atual.
 - O comprovante para registro na Selic pode ser gerado de `offers` + `settlements` + `chain_events` (partes, valor, taxa, timestamp e hash). Os campos finais exigidos pelo Inter ainda não foram confirmados; nenhuma tabela de comprovantes é necessária nesta migration.
-- A carteira assina; a API registra a intenção e depois recebe o hash enviado pelo frontend. Eventos sem intenção correspondente continuam indexados. `settlements` alimenta `/api/operations` e `/api/operations/:txHash`.
+- No fluxo alvo, a carteira assina; uma API autenticada poderá registrar a intenção e receber o hash. Eventos sem intenção correspondente ainda precisam ser indexados; a projeção de `settlements` deverá alimentar `/api/operations` e `/api/operations/:txHash`. Hoje essas rotas leem fixtures e transições `/api/mock`.
 
-**Limite da entrega:** a migration define tabelas e restrições, mas não implementa autenticação, rotas, listener, reconciliação nem conexão `pg`.
+**Limite da entrega:** o runner executa e verifica o esquema em PostgreSQL isolado, mas não conecta a API ao banco nem implementa listener, indexação, autenticação, reconciliação ou rollback de reorg. A migration guarda somente o hash do cursor, sem janela de hashes por bloco necessária à correção de reorg.
