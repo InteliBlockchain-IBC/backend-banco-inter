@@ -45,6 +45,8 @@ const vars = {
   borrowerWallet: mockWallets.beta,
   lenderWallet: mockWallets.alfa,
   openOfferId: mockOfferId(8),
+  cancelOfferId: mockOfferId(9),
+  mockOfferId: "",
   requestId: "",
   settledOfferId: mockOfferId(1),
   settledTxHash: "",
@@ -57,6 +59,7 @@ const createBody = {
   termDays: 1,
   validitySeconds: 3600,
 };
+const mockBody = { lenderWallet: "{{lenderWallet}}", ...createBody };
 const resolveVars = (value: unknown): unknown =>
   JSON.parse(
     JSON.stringify(value).replace(/\{\{(\w+)\}\}/g, (_, name: string) =>
@@ -68,6 +71,7 @@ async function main(): Promise<void> {
   let nextId = 0;
   const app = await buildApp({
     logger: false,
+    nodeEnv: "development",
     // ids fixos para o arquivo gerado não mudar a cada export
     newId: () =>
       `f0000000-0000-4000-8000-${String(++nextId).padStart(12, "0")}`,
@@ -83,17 +87,17 @@ async function main(): Promise<void> {
 
   const folders: Folder[] = [
     {
-      description: "Endereços dos contratos e estado do listener.",
+      description: "Endereços e cursor fictícios, sem deploy ou listener.",
       items: [
         {
           method: "GET",
-          name: "Contratos implantados",
+          name: "Endereços fictícios",
           path: "/api/deployment",
           samplePath: "/api/deployment",
         },
         {
           method: "GET",
-          name: "Estado da sincronização",
+          name: "Cursor simulado",
           path: "/api/sync-status",
           samplePath: "/api/sync-status",
         },
@@ -102,7 +106,7 @@ async function main(): Promise<void> {
     },
     {
       description:
-        "Leitura de ofertas e intenções de criar, aceitar, rejeitar e cancelar. As intenções devolvem contractCall para a carteira assinar.",
+        "Leitura de ofertas e intenções fictícias em development/test. contractCall traz endereços sintéticos; não assinar nem enviar.",
       items: [
         {
           examples: [
@@ -233,6 +237,43 @@ async function main(): Promise<void> {
     },
     {
       description:
+        "Somente development/test: transições DvP sintéticas, sem autenticação ou transações reais. Criar preenche {{mockOfferId}}.",
+      items: [
+        {
+          body: mockBody,
+          method: "POST",
+          name: "Criar oferta fictícia",
+          path: "/api/mock/offers",
+          samplePath: "/api/mock/offers",
+          test: [
+            "if (pm.response.code === 201) {",
+            '  pm.collectionVariables.set("mockOfferId", pm.response.json().data.offer.id);',
+            "}",
+          ],
+        },
+        {
+          method: "POST",
+          name: "Aceitar oferta fictícia",
+          path: "/api/mock/offers/{{mockOfferId}}/accept",
+          samplePath: "/api/mock/offers/{{mockOfferId}}/accept",
+        },
+        {
+          method: "POST",
+          name: "Rejeitar oferta fictícia",
+          path: "/api/mock/offers/{{openOfferId}}/reject",
+          samplePath: `/api/mock/offers/${vars.openOfferId}/reject`,
+        },
+        {
+          method: "POST",
+          name: "Cancelar oferta fictícia",
+          path: "/api/mock/offers/{{cancelOfferId}}/cancel",
+          samplePath: `/api/mock/offers/${vars.cancelOfferId}/cancel`,
+        },
+      ],
+      name: "Simulação DvP",
+    },
+    {
+      description:
         "Rode 'Criar oferta (intenção)' antes: ele preenche {{requestId}}.",
       items: [
         {
@@ -253,7 +294,7 @@ async function main(): Promise<void> {
       name: "Intenções",
     },
     {
-      description: "Operações liquidadas (comprovantes DvP).",
+      description: "Operações fictícias, sem liquidação on-chain.",
       items: [
         {
           method: "GET",
@@ -343,10 +384,23 @@ async function main(): Promise<void> {
     };
   };
 
-  const headersFor = (walletVar: string | undefined, hasBody: boolean) => [
+  const headersFor = (
+    walletVar: string | undefined,
+    hasBody: boolean,
+    wallet?: string,
+  ) => [
     ...(walletVar === undefined
       ? []
-      : [{ key: "X-Wallet-Address", value: `{{${walletVar}}}` }]),
+      : [
+          {
+            key: "X-Wallet-Address",
+            value:
+              wallet === undefined ||
+              wallet === vars[walletVar as keyof typeof vars]
+                ? `{{${walletVar}}}`
+                : wallet,
+          },
+        ]),
     ...(hasBody ? [{ key: "Content-Type", value: "application/json" }] : []),
   ];
 
@@ -390,7 +444,7 @@ async function main(): Promise<void> {
       ],
       name: /^\d{3} /.test(name) ? name : `${response.statusCode} - ${name}`,
       originalRequest: {
-        header: headersFor(entry.walletVar, body !== undefined),
+        header: headersFor(entry.walletVar, body !== undefined, wallet),
         method: entry.method,
         url: toPostmanUrl(path),
         ...(body === undefined
@@ -431,6 +485,9 @@ async function main(): Promise<void> {
           wallet,
         ),
       ];
+      if (entry.path === "/api/mock/offers" && entry.method === "POST") {
+        vars.mockOfferId = JSON.parse(responses[0]?.body ?? "{}").data.offer.id;
+      }
       for (const example of entry.examples ?? []) {
         responses.push(
           await exampleFrom(
@@ -442,17 +499,24 @@ async function main(): Promise<void> {
           ),
         );
       }
+      const expectedStatus = responses[0]?.code;
+      if (expectedStatus === undefined)
+        throw new Error(`Exemplo principal ausente: ${entry.name}`);
       items.push({
-        ...(entry.test === undefined
-          ? {}
-          : {
-              event: [
-                {
-                  listen: "test",
-                  script: { exec: entry.test, type: "text/javascript" },
-                },
+        event: [
+          {
+            listen: "test",
+            script: {
+              exec: [
+                'pm.test("Status HTTP esperado", () => {',
+                `  pm.response.to.have.status(${expectedStatus});`,
+                "});",
+                ...(entry.test ?? []),
               ],
-            }),
+              type: "text/javascript",
+            },
+          },
+        ],
         name: entry.name,
         request: {
           ...(entry.body === undefined
@@ -486,10 +550,11 @@ async function main(): Promise<void> {
       description: [
         `API mock do backend Banco Inter, versão ${API_VERSION}.`,
         "",
-        "Todas as respostas de /api/* são fictícias (cabeçalho X-Data-Source: mock).",
+        "Respostas de sucesso /api/* são fictícias (X-Data-Source: mock); erros são Problem Details.",
         "Rodando a API localmente (npm run start), ajuste {{baseUrl}} se necessário.",
         "Carteiras de exemplo: lenderWallet = Banco Alfa, borrowerWallet = Banco Beta.",
-        "As requisições POST exigem o cabeçalho X-Wallet-Address.",
+        "Somente intenções de assinatura exigem X-Wallet-Address, sem autenticar a carteira.",
+        "POST só existe em development/test; production serve consultas fictícias.",
         "Guia completo em docs/api.md.",
       ].join("\n"),
       name: "Backend Banco Inter - API mock",
@@ -498,7 +563,7 @@ async function main(): Promise<void> {
       version: API_VERSION,
     },
     item: collectionFolders,
-    variable: Object.entries({ ...vars, requestId: "" }).map(
+    variable: Object.entries({ ...vars, requestId: "", mockOfferId: "" }).map(
       ([key, value]) => ({
         key,
         value,

@@ -182,6 +182,36 @@ test("an amount equal to the borrower limit is accepted", async (t) => {
   assert.equal(response.statusCode, 202);
 });
 
+test("intent accepts uint256 decimal width without arbitrary 30-digit truncation", async (t) => {
+  const { app } = await setup(t);
+  const large = await createOffer(app, mockWallets.alfa, {
+    ...validOffer,
+    amountCents: `1${"0".repeat(30)}`,
+  });
+  assert.equal(large.statusCode, 422);
+  assert.match(large.json().type, /insufficient-limit$/);
+  const overflow = await createOffer(app, mockWallets.alfa, {
+    ...validOffer,
+    amountCents: (1n << 256n).toString(),
+  });
+  assert.equal(overflow.statusCode, 400);
+  assert.match(overflow.json().type, /invalid-amount$/);
+});
+
+test("intent memory is bounded and rejects further writes without adding offers", async (t) => {
+  const { app } = await setup(t);
+  for (let index = 0; index < 100; index++) {
+    assert.equal((await createOffer(app, mockWallets.alfa)).statusCode, 202);
+  }
+  const full = await createOffer(app, mockWallets.alfa);
+  assert.equal(full.statusCode, 503);
+  assert.match(full.json().type, /request-store-full$/);
+  assert.equal(
+    (await app.inject({ method: "GET", url: "/api/offers" })).json().meta.total,
+    9,
+  );
+});
+
 test("only the borrower can accept or reject, only the lender can cancel", async (t) => {
   const { app } = await setup(t);
 

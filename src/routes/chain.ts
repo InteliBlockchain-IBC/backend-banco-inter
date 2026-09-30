@@ -12,13 +12,13 @@ export async function registerChainRoutes(
     {
       schema: {
         description:
-          "Rede e endereços dos contratos. O frontend usa para montar as chamadas e checar se a carteira está na rede certa.",
+          "Endereços sintéticos de demonstração. Não usar para construir ou enviar transações reais na Sepolia.",
         operationId: "getDeployment",
         response: {
           200: dataEnvelope({ $ref: "Deployment#" }),
           ...errorResponses(),
         },
-        summary: "Contratos implantados",
+        summary: "Endereços fictícios",
         tags: ["rede"],
       },
     },
@@ -30,13 +30,13 @@ export async function registerChainRoutes(
     {
       schema: {
         description:
-          "Último bloco processado pelo listener e atraso em segundos. Quando stale for true, a interface deve avisar que os dados podem estar desatualizados.",
+          "Cursor fictício da instância mock; não representa logs indexados nem disponibilidade de listener.",
         operationId: "getSyncStatus",
         response: {
           200: dataEnvelope({ $ref: "SyncStatus#" }),
           ...errorResponses(),
         },
-        summary: "Estado da sincronização",
+        summary: "Cursor simulado",
         tags: ["rede"],
       },
     },

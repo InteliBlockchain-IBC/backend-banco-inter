@@ -24,7 +24,7 @@ const listQuery = {
       type: "string",
     },
     registered: {
-      description: "true: só carteiras autorizadas no contrato.",
+      description: "true: só carteiras marcadas como cadastradas nas fixtures.",
       type: "boolean",
     },
   },
@@ -46,7 +46,7 @@ export async function registerCreditLimitRoutes(
     {
       schema: {
         description:
-          "Limites disponíveis por carteira, maior limite primeiro (RF04). Para escolher o tomador de uma nova oferta: registered=true, minAvailableCents=<valor> e excludeWallet=<carteira do operador>.",
+          "Limites fictícios por carteira, maior primeiro. Para escolher tomador de uma simulação: registered=true, minAvailableCents=<valor> e excludeWallet=<carteira ofertante>.",
         operationId: "listCreditLimits",
         querystring: listQuery,
         response: {
@@ -65,7 +65,7 @@ export async function registerCreditLimitRoutes(
     "/api/credit-limits/:wallet",
     {
       schema: {
-        description: "Limite atual de uma carteira.",
+        description: "Limite fictício atual de uma carteira.",
         operationId: "getCreditLimit",
         params: walletParams,
         response: {
@@ -85,7 +85,7 @@ export async function registerCreditLimitRoutes(
     {
       schema: {
         description:
-          "Mudanças de limite da carteira, mais recentes primeiro: ajustes do admin e débitos das liquidações.",
+          "Histórico sintético de mudanças de limite, mais recentes primeiro: ajustes e débitos de liquidações fictícias.",
         operationId: "listCreditLimitHistory",
         params: walletParams,
         response: {

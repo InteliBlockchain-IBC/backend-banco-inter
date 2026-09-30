@@ -1,6 +1,5 @@
 -- Projecao inicial do CreditInterbankOffer (Sepolia). PostgreSQL 13+.
 -- Inteiros uint256 sao preservados em numeric(78,0); valores BRLt em centavos.
-BEGIN;
 
 CREATE TABLE institutions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -189,5 +188,3 @@ CREATE TABLE sync_cursors (
     FOREIGN KEY (chain_id, contract_address)
         REFERENCES contract_deployments (chain_id, contract_address)
 );
-
-COMMIT;
