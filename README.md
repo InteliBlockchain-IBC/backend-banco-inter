@@ -26,11 +26,58 @@ O que ele explicitamente **não** faz: assinar transações. Quem assina é a ca
 
 ## Estado atual
 
-Versão `0.2.0`. Todas as rotas da API existem com o **payload final**, mas respondem com **dados fictícios em memória**: ainda não há PostgreSQL, driver `pg`, `viem`, RPC nem ABI ligados.
+Versão `0.2.0`. Todas as rotas da API existem com o **payload final**, mas respondem com **dados fictícios em memória**: ainda não há conexão da API com PostgreSQL, driver `pg`, `viem`, RPC nem ABI ligados. O Docker Compose disponibiliza um PostgreSQL local com o esquema inicial.
 
 Toda resposta de `/api/*` carrega `x-data-source: mock` no cabeçalho e `meta.source: "mock"` no corpo, para que ninguém confunda fixture com dado real. As rotas de escrita validam as mesmas regras do contrato e guardam as intenções em memória até o processo reiniciar.
 
 ## Começando
+
+### Com Docker Compose — API e banco em um comando
+
+Requisito: Docker com o plugin Docker Compose. Na raiz do repositório:
+
+```bash
+docker compose up --build -d
+```
+
+O Compose constrói a API com Node.js 24 e sobe dois containers: `api` e `db`
+(PostgreSQL 17). A API inicia depois que o banco aceita conexões. Não é
+necessário instalar Node.js ou PostgreSQL no computador para usar esse ambiente.
+
+- API: <http://localhost:3000>
+- Documentação interativa: <http://localhost:3000/docs>
+- Healthcheck: <http://localhost:3000/health>
+- PostgreSQL: `localhost:5432`, banco `banco_inter`, usuário `banco_inter`, senha local `banco_inter_local`.
+
+As portas publicadas ficam acessíveis apenas no próprio computador. Para alterar
+portas ou credenciais, copie `.env.example` para `.env` e ajuste `API_PORT`,
+`POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` e `POSTGRES_PASSWORD` antes da
+primeira inicialização. O comando funciona também sem `.env`, usando esses padrões.
+
+O banco aplica `migrations/001_initial_schema.sql` automaticamente quando o volume
+`postgres_data` está vazio. Esse mecanismo inicializa o esquema; arquivos SQL
+adicionados ou alterados depois não são reaplicados automaticamente. O volume
+preserva os dados ao parar e recriar os containers. Alterar credenciais em `.env`
+também não modifica um banco que já foi inicializado.
+
+**A API continua em modo mock.** Subir os dois serviços não implementa persistência:
+as rotas ainda usam `MockStore`, e as intenções em memória desaparecem ao reiniciar
+a API. Quando a conexão `pg` for implementada, a API deverá acessar o banco pelo
+host `db`, porta `5432`, dentro da rede do Compose.
+
+Para consultar o estado, acompanhar logs, abrir o banco e encerrar o ambiente:
+
+```bash
+docker compose ps
+docker compose logs -f
+docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+docker compose down
+```
+
+`docker compose down` preserva os dados do PostgreSQL. Para apagar os dados locais
+e recriar o esquema na próxima inicialização, use `docker compose down -v`.
+
+### Com Node.js instalado no computador
 
 Requisitos: **Node.js 24** (fixado em [`.nvmrc`](.nvmrc)) e npm.
 
