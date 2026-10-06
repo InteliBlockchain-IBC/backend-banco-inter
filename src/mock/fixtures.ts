@@ -28,6 +28,8 @@ export type Fixtures = {
   offers: OfferRecord[];
   settlements: SettlementRecord[];
   syncCursor: SyncCursor;
+  /** Apelido off-chain de carteiras (institution_wallets.label). */
+  walletLabels: Partial<Record<Address, string>>;
   wallets: WalletState[];
 };
 
@@ -51,6 +53,8 @@ function uuid(prefix: string, n: number): string {
 
 export const mockWallets = {
   alfa: wallet("a1"),
+  /** Segunda carteira do Banco Alfa: uma instituição opera várias carteiras. */
+  alfaTreasury: wallet("a7"),
   beta: wallet("b2"),
   delta: wallet("d4"),
   gama: wallet("c3"),
@@ -461,6 +465,38 @@ export function createFixtures(now: Date): Fixtures {
     }
   });
 
+  // Banco Alfa cadastra uma segunda carteira (tesouraria) com limite próprio.
+  // Vem depois das ofertas para não deslocar os hashes sintéticos acima.
+  {
+    const registeredAt = new Date(nowMs - DAY);
+    const state: WalletState = {
+      availableLimitCents: 0n,
+      institutionId: mockInstitutionIds.alfa,
+      isRegistered: true,
+      observedAt: registeredAt,
+      observedBlock: blockAt(registeredAt),
+      wallet: mockWallets.alfaTreasury,
+    };
+    walletByAddress.set(state.wallet, state);
+    emit(registeredAt, nextTx(), 0, "InstitutionRegistered", {
+      timestamp: String(Math.floor(registeredAt.getTime() / 1000)),
+      wallet: state.wallet,
+    });
+    const limitAt = new Date(registeredAt.getTime() + 10 * MINUTE);
+    const limitTx = nextTx();
+    emit(limitAt, limitTx, 0, "CreditLimitUpdated", {
+      institution: state.wallet,
+      newLimit: "6000000000",
+      previousLimit: "0",
+      timestamp: String(Math.floor(limitAt.getTime() / 1000)),
+    });
+    setLimit(state, 6_000_000_000n, limitAt, "admin_update", {
+      logIndex: 0,
+      offerId: null,
+      txHash: limitTx,
+    });
+  }
+
   chainEvents.sort(
     (a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex,
   );
@@ -482,6 +518,10 @@ export function createFixtures(now: Date): Fixtures {
       lastProcessedBlock: syncBlock,
       lastProcessedBlockHash: blockHash(syncBlock),
       lastSyncedAt: syncedAt,
+    },
+    walletLabels: {
+      [mockWallets.alfa]: "Mesa de operações",
+      [mockWallets.alfaTreasury]: "Tesouraria",
     },
     wallets: [...walletByAddress.values()],
   };

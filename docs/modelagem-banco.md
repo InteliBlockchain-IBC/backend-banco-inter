@@ -19,7 +19,7 @@ erDiagram
 | Tabela | Função |
 | --- | --- |
 | `institutions` | Nome e CNPJ off-chain de cada banco. Nunca publicar esses dados na chain. |
-| `contract_deployments` | Rede, endereços do contrato DvP, BRLt e NFT, e bloco inicial do indexador. |
+| `contract_deployments` | Rede, endereços do contrato DvP, BRLt e NFT, e bloco inicial do indexador. Chave primária composta `(chain_id, contract_address)` (veja abaixo). |
 | `institution_wallets` | Carteiras de cada banco: **uma instituição tem várias carteiras**, cada carteira pertence a uma instituição. Cadastro off-chain, válido para qualquer deployment (o endereço EVM é o mesmo em todas as redes). |
 | `contract_wallet_state` | Estado on-chain de cada carteira **por contrato**: cadastro ativo e limite disponível. O limite é por carteira, como no contrato. O banco dono é obtido por `institution_wallets` pelo endereço; uma carteira vista on-chain sem vínculo continua válida (aparece com `institution: null`). |
 | `offers` | Uma linha por oferta confirmada, identificada por `(chain_id, contract_address, onchain_offer_id)`; ofertante e tomador são carteiras **direcionadas**. |
@@ -38,6 +38,15 @@ Não são duas chaves primárias: é **uma** chave primária composta, `PRIMARY 
 - a **mesma rede recebe vários deploys** — cada redeploy na Sepolia gera um endereço novo, e os dados do anterior continuam consultáveis.
 
 Por isso toda tabela on-chain (`contract_wallet_state`, `offers`, `chain_events`, `sync_cursors`…) referencia `contract_deployments` pelo par `(chain_id, contract_address)`: um evento, oferta ou limite só faz sentido dentro de um contrato específico de uma rede específica. Um id sintético (`uuid`) evitaria a chave de duas colunas, mas cada tabela ainda precisaria guardar rede e endereço para o listener casar os logs, e a unicidade do par teria de ser garantida à parte.
+
+## Migrations
+
+| Arquivo | O que faz |
+| --- | --- |
+| `001_initial_schema.sql` | Esquema inicial da projeção. |
+| `002_institution_wallets.sql` | Cria `institution_wallets`, copia os vínculos que estavam em `contract_wallet_state.institution_id` e remove essa coluna (e a restrição de uma carteira por banco em cada contrato). |
+
+Migrations aplicadas **não são editadas**: o runner guarda o checksum de cada arquivo e recusa um arquivo alterado. Mudanças de esquema entram como um novo arquivo `NNN_nome.sql`, aplicado por `npm run db:setup` ou pelo serviço `setup` do compose.
 
 ## Unidades e estados
 

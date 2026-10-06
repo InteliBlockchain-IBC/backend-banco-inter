@@ -57,7 +57,7 @@ Não é necessário instalar Node.js ou PostgreSQL no computador.
 
 As portas publicadas ficam acessíveis apenas no próprio computador. Para alterar portas, credenciais ou o seed, copie `.env.example` para `.env` e ajuste `API_PORT`, `POSTGRES_*`, `API_NODE_ENV` e `SEED_DEMO`. O comando funciona também sem `.env`, usando esses padrões.
 
-**Seed de demonstração.** Os horários da massa são relativos ao momento do seed, então logo depois dele há duas ofertas abertas (validade de 1 hora), liquidações, cancelamento, rejeição e vencimentos. `SEED_DEMO=if-empty` (padrão) grava só no primeiro `up` e preserva o que você criar depois. Para recriar a massa com horários renovados — por exemplo, antes de uma demonstração:
+**Seed de demonstração.** Quatro bancos fictícios — o Banco Alfa com duas carteiras, mostrando que uma instituição opera várias — e nove ofertas. Os horários são relativos ao momento do seed, então logo depois dele há duas ofertas abertas (validade de 1 hora), liquidações, cancelamento, rejeição e vencimentos. `SEED_DEMO=if-empty` (padrão) grava só no primeiro `up` e preserva o que você criar depois. Para recriar a massa com horários renovados — por exemplo, antes de uma demonstração:
 
 ```bash
 docker compose run --rm -e SEED_DEMO=reset setup
@@ -73,6 +73,14 @@ docker compose down
 ```
 
 `docker compose down` preserva os dados do PostgreSQL; `docker compose down -v` apaga o volume e o próximo `up` recria esquema e seed.
+
+**Atualizando um ambiente que já existe** (depois de um `git pull` com migration nova, como a `002_institution_wallets.sql`):
+
+```bash
+docker compose up --build -d
+```
+
+O `--build` coloca as migrations novas na imagem e o `setup` aplica só as pendentes, sem apagar dados. O seed `if-empty` não regrava um banco que já tem dados; para ver a massa nova (por exemplo, a segunda carteira do Banco Alfa), recrie-a com `docker compose run --rm -e SEED_DEMO=reset setup`.
 
 > **Já usava o compose da versão 0.3.0?** Aquele volume foi criado pelo `docker-entrypoint-initdb.d`, sem `schema_migrations`, e o `setup` falharia com "relation already exists". Rode `docker compose down -v` uma vez antes do novo `up`.
 
@@ -185,7 +193,7 @@ scripts/
   setup-db.ts         migrations + seed (serviço setup do compose)
   migrate.ts, seed.ts comandos isolados
   export-docs.ts      OpenAPI e coleção Postman do ambiente development
-migrations/           esquema SQL versionado
+migrations/           esquema SQL versionado (001 esquema inicial, 002 carteiras por instituição)
 test/                 testes HTTP e integração PostgreSQL opcional
 docs/                 arquitetura, modelagem e referência de API
 ```
@@ -222,7 +230,7 @@ RF01–RF03 dependem do trabalho de contratos e da validação entre equipes; n�
 - [`docs/arquitetura.md`](docs/arquitetura.md) — arquitetura atual e alvo, decisões e trade-offs.
 - [`docs/api.md`](docs/api.md) — contrato HTTP, fontes de dados e exemplos.
 - [`docs/openapi.json`](docs/openapi.json) e [`docs/collection/`](docs/collection/) — artefatos de `npm run docs:export` para `development`.
-- [`docs/modelagem-banco.md`](docs/modelagem-banco.md) — modelo ER; esquema em [`migrations/001_initial_schema.sql`](migrations/001_initial_schema.sql).
+- [`docs/modelagem-banco.md`](docs/modelagem-banco.md) — modelo ER e histórico das migrations; esquema em [`migrations/`](migrations/).
 
 ## Licença
 

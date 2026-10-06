@@ -5,7 +5,7 @@ import { mixedCase, mockWallets, setup } from "./support.js";
 
 type Limit = {
   availableLimitCents: string;
-  institution: { name: string } | null;
+  institution: { id: string; name: string } | null;
   isRegistered: boolean;
   wallet: string;
 };
@@ -24,7 +24,9 @@ test("credit limits are listed with the largest limit first", async (t) => {
   ).json().data as Limit[];
   const values = limits.map((limit) => BigInt(limit.availableLimitCents));
 
-  assert.equal(limits.length, 4);
+  // Alfa opera duas carteiras: são cinco carteiras de quatro instituições.
+  assert.equal(limits.length, 5);
+  assert.equal(new Set(limits.map((limit) => limit.institution?.id)).size, 4);
   assert.deepEqual(
     values,
     [...values].sort((a, b) => (a > b ? -1 : a < b ? 1 : 0)),

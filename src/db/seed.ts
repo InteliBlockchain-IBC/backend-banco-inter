@@ -74,9 +74,13 @@ export async function seedDemo(
       if (wallet.institutionId !== null) {
         // Vínculo off-chain, válido para qualquer deployment.
         await client.query(
-          `INSERT INTO institution_wallets (wallet_address, institution_id)
-           VALUES ($1, $2) ON CONFLICT (wallet_address) DO NOTHING`,
-          [wallet.wallet, wallet.institutionId],
+          `INSERT INTO institution_wallets (wallet_address, institution_id, label)
+           VALUES ($1, $2, $3) ON CONFLICT (wallet_address) DO NOTHING`,
+          [
+            wallet.wallet,
+            wallet.institutionId,
+            data.walletLabels[wallet.wallet] ?? null,
+          ],
         );
       }
       await client.query(

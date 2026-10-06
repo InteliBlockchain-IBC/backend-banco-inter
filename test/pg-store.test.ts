@@ -404,7 +404,8 @@ test("one institution operates several wallets", { skip }, async (t) => {
   const db = new pg.Client({ connectionString: databaseUrl });
   await db.connect();
   t.after(() => db.end());
-  const treasury = `0x${"a7".repeat(20)}`;
+  // O seed já dá duas carteiras ao Alfa; esta é a terceira.
+  const treasury = `0x${"a8".repeat(20)}`;
   const { rows } = await db.query<{
     chain_id: string;
     contract_address: string;
@@ -414,7 +415,7 @@ test("one institution operates several wallets", { skip }, async (t) => {
   // Segunda carteira do Banco Alfa: vínculo off-chain + estado on-chain próprio.
   await db.query(
     `INSERT INTO institution_wallets (wallet_address, institution_id, label)
-     SELECT $1, institution_id, 'Tesouraria' FROM institution_wallets
+     SELECT $1, institution_id, 'Câmbio' FROM institution_wallets
       WHERE wallet_address = $2`,
     [treasury, mockWallets.alfa],
   );
@@ -458,5 +459,5 @@ test("one institution operates several wallets", { skip }, async (t) => {
        JOIN institutions i ON i.id = iw.institution_id
       WHERE i.name = 'Banco Alfa S.A. (fictício)'`,
   );
-  assert.equal(byInstitution.rows[0]?.wallets, "2");
+  assert.equal(byInstitution.rows[0]?.wallets, "3");
 });

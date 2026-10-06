@@ -11,7 +11,7 @@ Contrato da API para a PoC. Com `DATABASE_URL`, leituras, intenções e simulaç
 
 Os arquivos são gerados pela própria API (`npm run docs:export` no ambiente `development`). Um teste compara o OpenAPI exportado ao servido nesse ambiente e verifica a cobertura de rotas pela coleção.
 
-**Alinhamento preliminar:** contrato `CreditInterbankOffer` da branch `feat/escopo-reduzido-dvp` do repositório de contratos (commit `b68cf40`) e esquema de [`migrations/001_initial_schema.sql`](../migrations/001_initial_schema.sql). A ABI final e o deploy não foram verificados.
+**Alinhamento preliminar:** contrato `CreditInterbankOffer` da branch `feat/escopo-reduzido-dvp` do repositório de contratos (commit `b68cf40`) e esquema de [`migrations/`](../migrations/) (`001_initial_schema.sql` e `002_institution_wallets.sql`). A ABI final e o deploy não foram verificados.
 
 ---
 
@@ -470,7 +470,7 @@ Esquemas completos (com descrição de cada campo) em `components.schemas` do [`
 
 | Recurso | Campos principais | Tabelas |
 | --- | --- | --- |
-| `Party` | `wallet`, `institution { id, name } \| null` | `contract_wallet_state` + `institutions` |
+| `Party` | `wallet`, `institution { id, name } \| null` | `institution_wallets` + `institutions` (`null` se a carteira não tem banco vinculado) |
 | `Offer` | `id`, `onchainOfferId`, `lender`, `borrower`, `amountCents`, `rateCdiBps`, `termDays`, `status`, `onchainStatusCode`, `createdAt`, `expiresAt`, `createTxHash`, `createdBlock`, `settlement` | `offers` + `settlements` |
 | `ChainEvent` | `eventName`, `txHash`, `logIndex`, `blockNumber`, `blockHash`, `blockTimestamp`, `offerId`, `args` | `chain_events` |
 | `Operation` | `txHash`, `offerId`, partes, `amountCents`, `rateCdiBps`, `termDays`, `positionTokenId`, `blockNumber`, `blockHash`, `settledAt`, `explorerUrl` | `settlements` + `offers` |
@@ -518,9 +518,12 @@ Sem listener, só existem `pending`, `submitted` e `expired`.
 
 A mesma massa serve as duas fontes: em memória ela é criada quando a API sobe; no PostgreSQL, gravada pelo seed (`npm run db:setup`, serviço `setup` do compose). Os horários são relativos a esse momento, então logo depois há ofertas abertas; para renová-los no banco, `docker compose run --rm -e SEED_DEMO=reset setup` ou `npm run db:seed -- --reset`. Nomes e endereços são fictícios.
 
+Uma instituição pode operar várias carteiras; o limite e o cadastro on-chain são **por carteira**. O Banco Alfa tem duas.
+
 | Banco | Carteira | Limite disponível | Situação |
 | --- | --- | --- | --- |
-| Banco Alfa | `0xa1a1…a1` (`0xa1` × 20) | R$ 300.000.000,00 | cadastrado |
+| Banco Alfa | `0xa1a1…a1` (`0xa1` × 20), "Mesa de operações" | R$ 300.000.000,00 | cadastrado |
+| Banco Alfa | `0xa7a7…a7`, "Tesouraria" | R$ 60.000.000,00 | cadastrado |
 | Banco Beta | `0xb2b2…b2` | R$ 150.000.000,00 | cadastrado |
 | Banco Gama | `0xc3c3…c3` | R$ 80.000.000,00 | cadastrado |
 | Banco Delta | `0xd4d4…d4` | R$ 50.000.000,00 | **revogado** |

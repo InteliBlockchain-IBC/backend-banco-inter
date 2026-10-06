@@ -51,7 +51,7 @@ Deverá ler logs por intervalo de blocos, persistir eventos e projeções com cu
 
 ### PostgreSQL (integrado à API)
 
-As nove tabelas de domínio e `schema_migrations` são criadas pelo runner (`setup` no compose). A API lê todas e grava ofertas, eventos, liquidações, limites, histórico, cursor e intenções. `/ready` executa `SELECT 1` e responde 503 se o banco cair; em `production` o servidor não sobe sem `DATABASE_URL`. Quando o listener existir, ele passará a ser o escritor da projeção, sujeito a replay e correção de reorg.
+As dez tabelas de domínio e `schema_migrations` são criadas pelas migrations versionadas (`001_initial_schema.sql`, `002_institution_wallets.sql`), aplicadas pelo runner (`setup` no compose). Uma instituição opera várias carteiras (`institution_wallets`); cadastro e limite on-chain são por carteira (`contract_wallet_state`). A API lê todas e grava ofertas, eventos, liquidações, limites, histórico, cursor e intenções. `/ready` executa `SELECT 1` e responde 503 se o banco cair; em `production` o servidor não sobe sem `DATABASE_URL`. Quando o listener existir, ele passará a ser o escritor da projeção, sujeito a replay e correção de reorg.
 
 ### RPC provider
 

@@ -20,8 +20,9 @@ services:
       retries: 10
       start_period: 10s
 
-  # Executa uma vez e termina: aplica migrations versionadas e grava o seed.
-  # SEED_DEMO=if-empty (padrão) preserva dados; reset recria com horários novos.
+  # Executa a cada `up` e termina: aplica as migrations pendentes de
+  # migrations/ (copiadas na imagem; use --build depois de um pull) e grava o
+  # seed. SEED_DEMO=if-empty (padrão) preserva dados; reset recria a massa.
   setup:
     build: .
     command: ["node", "dist/scripts/setup-db.js"]
