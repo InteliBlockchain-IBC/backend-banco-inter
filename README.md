@@ -228,6 +228,7 @@ RF01–RF03 dependem do trabalho de contratos e da validação entre equipes; n�
 
 ## Documentação
 - [`docs/arquitetura.md`](docs/arquitetura.md) — arquitetura atual e alvo, decisões e trade-offs.
+- [`docs/deploy.md`](docs/deploy.md) — plano de deploy no Render: provedor, variáveis de ambiente, passo a passo e checklist do demo day ([`render.yaml`](render.yaml)).
 - [`docs/api.md`](docs/api.md) — contrato HTTP, fontes de dados e exemplos.
 - [`docs/openapi.json`](docs/openapi.json) e [`docs/collection/`](docs/collection/) — artefatos de `npm run docs:export` para `development`.
 - [`docs/modelagem-banco.md`](docs/modelagem-banco.md) — modelo ER e histórico das migrations; esquema em [`migrations/`](migrations/).

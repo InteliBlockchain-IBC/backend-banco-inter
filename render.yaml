@@ -1,0 +1,38 @@
+# Blueprint do Render: API + PostgreSQL da PoC. Passo a passo em docs/deploy.md.
+# Criar: Render Dashboard -> New -> Blueprint -> selecionar este repositório.
+services:
+  - type: web
+    name: backend-banco-inter
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    # Não há região na América do Sul; Virginia é a mais próxima do Brasil.
+    region: virginia
+    branch: main
+    autoDeploy: true
+    # O plano free não executa preDeployCommand: migrations e seed rodam antes
+    # do servidor no mesmo comando. setup-db é idempotente (só aplica o que
+    # falta; o seed if-empty não regrava um banco com dados).
+    dockerCommand: sh -c "node dist/scripts/setup-db.js && exec node dist/src/server.js"
+    # Liveness. /ready (testa o banco) fica para monitoramento externo.
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      # PORT é definida pelo próprio Render e lida por src/config.ts.
+      - key: SEED_DEMO
+        value: if-empty
+      - key: DATABASE_URL
+        fromDatabase:
+          name: banco-inter-db
+          property: connectionString
+
+databases:
+  - name: banco-inter-db
+    databaseName: banco_inter
+    user: banco_inter
+    plan: free
+    region: virginia
+    postgresMajorVersion: "17"
