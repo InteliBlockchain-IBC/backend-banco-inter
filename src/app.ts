@@ -17,11 +17,12 @@ import { registerChainRoutes } from "./routes/chain.js";
 import { registerCreditLimitRoutes } from "./routes/credit-limits.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerOfferRoutes } from "./routes/offers.js";
+import { registerSimulatedOfferRoutes } from "./routes/mock-offers.js";
 import { registerOperationRoutes } from "./routes/operations.js";
 import { registerTransactionRequestRoutes } from "./routes/transaction-requests.js";
 import { sharedSchemas } from "./schemas.js";
 
-export const API_VERSION = "0.2.0";
+export const API_VERSION = "0.3.0";
 
 export type BuildOptions = {
   logger?: boolean;
@@ -116,23 +117,23 @@ function sendProblem(
 const tags = [
   {
     description:
-      "Ofertas confirmadas on-chain e intenções de criar, aceitar, rejeitar e cancelar.",
+      "Ofertas fictícias da instância e, em development/test, intenções sem autenticação.",
     name: "ofertas",
   },
   {
     description:
-      "Ciclo de uma intenção: pending até o frontend informar o hash, depois submitted até o listener confirmar.",
+      "Intenção fictícia pending/submitted; não há listener para confirmar ou reprovar.",
     name: "intenções",
   },
   {
-    description: "Histórico de liquidações DvP (comprovantes).",
+    description: "Comprovantes fictícios de liquidações simuladas.",
     name: "operações",
   },
   {
     description: "Limites de crédito por carteira e seu histórico.",
     name: "limites",
   },
-  { description: "Contratos implantados e estado do listener.", name: "rede" },
+  { description: "Endereços e cursor sintéticos da rede.", name: "rede" },
   { description: "Liveness e readiness do processo.", name: "saúde" },
   {
     description: "Contrato OpenAPI servido pela aplicação.",
@@ -145,7 +146,8 @@ export async function buildApp(
 ): Promise<FastifyInstance> {
   const now = options.now ?? (() => new Date());
   const store = new MockStore(now, options.newId);
-  const logStackTrace = options.nodeEnv === "development";
+  const nodeEnv = options.nodeEnv ?? "production";
+  const logStackTrace = nodeEnv === "development";
   const app = Fastify({
     ajv: { customOptions: { removeAdditional: false } },
     bodyLimit: 16 * 1024,
@@ -234,14 +236,24 @@ export async function buildApp(
     openapi: {
       info: {
         description:
-          "API da PoC de crédito interfinanceiro overnight (Banco Inter x Inteli Blockchain). Nesta versão todas as respostas de /api/* são fictícias (x-data-source: mock). A API nunca assina transações: ela registra intenções e devolve contractCall para a carteira do operador. Guia completo em docs/api.md.",
+          "API da PoC de crédito interfinanceiro overnight. Respostas /api/* de sucesso são fictícias (x-data-source: mock); erros usam Problem Details. Somente development/test expõem comandos simulados /api/mock e intenções de assinatura, sem autenticação de carteira. Nenhuma rota assina ou envia transações. Guia em docs/api.md.",
         license: { name: "MIT" },
         title: "API do Backend Banco Inter",
         version: API_VERSION,
       },
       openapi: "3.0.3",
       servers: [{ description: "Local", url: "http://127.0.0.1:3000" }],
-      tags,
+      tags:
+        nodeEnv === "production"
+          ? tags
+          : [
+              ...tags,
+              {
+                description:
+                  "Transições DvP fictícias, sem autenticação ou transferência.",
+                name: "simulação",
+              },
+            ],
     },
     refResolver: {
       buildLocalReference: (json, _baseUri, _fragment, index) =>
@@ -251,8 +263,17 @@ export async function buildApp(
   await app.register(swaggerUi, { routePrefix: "/docs" });
   await app.register(registerHealthRoutes);
   await app.register(registerChainRoutes, { store });
-  await app.register(registerOfferRoutes, { store });
-  await app.register(registerTransactionRequestRoutes, { store });
+  await app.register(registerOfferRoutes, {
+    store,
+    enableIntents: nodeEnv !== "production",
+  });
+  await app.register(registerTransactionRequestRoutes, {
+    store,
+    enableIntents: nodeEnv !== "production",
+  });
+  if (nodeEnv !== "production") {
+    await app.register(registerSimulatedOfferRoutes, { store });
+  }
   await app.register(registerOperationRoutes, { store });
   await app.register(registerCreditLimitRoutes, { store });
   app.get(

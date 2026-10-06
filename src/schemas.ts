@@ -13,8 +13,8 @@ import { problemSchema } from "./problem.js";
 
 export const patterns = {
   address: "^0x[0-9a-fA-F]{40}$",
-  cents: "^(0|[1-9][0-9]{0,29})$",
-  positiveCents: "^[1-9][0-9]{0,29}$",
+  cents: "^(0|[1-9][0-9]{0,77})$",
+  positiveCents: "^[1-9][0-9]{0,77}$",
   txHash: "^0x[0-9a-fA-F]{64}$",
   uuid: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
 } as const;
@@ -63,7 +63,7 @@ const offerSchema = {
   $id: "Offer",
   additionalProperties: false,
   description:
-    "Oferta direcionada confirmada on-chain (tabela offers + settlements).",
+    "Oferta fictícia nesta versão; esquema previsto para uma projeção on-chain futura.",
   properties: {
     amountCents: cents("Valor emprestado."),
     borrower: { $ref: "Party#" },
@@ -141,7 +141,8 @@ const offerSchema = {
 const chainEventSchema = {
   $id: "ChainEvent",
   additionalProperties: false,
-  description: "Log do contrato indexado pelo listener (tabela chain_events).",
+  description:
+    "Evento fictício nesta versão; estrutura prevista para logs indexados.",
   properties: {
     args: {
       additionalProperties: { type: "string" },
@@ -173,11 +174,11 @@ const chainEventSchema = {
   type: "object",
 } as const;
 
-const operationSchema = {
+export const operationSchema = {
   $id: "Operation",
   additionalProperties: false,
   description:
-    "Operação liquidada: o comprovante com partes, valor, taxa, horário e hash (RNF03).",
+    "Comprovante fictício nesta versão: hash e bloco sintéticos, sem prova on-chain.",
   properties: {
     amountCents: cents("Valor liquidado."),
     blockHash: txHash("Hash do bloco da liquidação."),
@@ -225,7 +226,7 @@ const creditLimitSchema = {
   $id: "CreditLimit",
   additionalProperties: false,
   description:
-    "Limite disponível de uma carteira, espelho de availableLimit() (tabela contract_wallet_state).",
+    "Limite fictício nesta versão; futuro espelho de availableLimit().",
   properties: {
     availableLimitCents: cents("Limite disponível para tomar."),
     institution: institutionSchema,
@@ -372,7 +373,8 @@ const transactionRequestSchema = {
 const deploymentSchema = {
   $id: "Deployment",
   additionalProperties: false,
-  description: "Contratos implantados que a API indexa.",
+  description:
+    "Endereços sintéticos de fixtures, não implantação verificada na Sepolia.",
   properties: {
     brlTokenAddress: address("ERC-20 BRLt (2 casas decimais)."),
     chainId: { type: "integer" },
@@ -401,7 +403,7 @@ const syncStatusSchema = {
   $id: "SyncStatus",
   additionalProperties: false,
   description:
-    "Cursor do listener. Use stale para avisar na interface que os dados podem estar atrasados.",
+    "Cursor fictício nesta versão; não indica sincronização real de listener.",
   properties: {
     chainId: { type: "integer" },
     contractAddress: address("Contrato sincronizado."),
@@ -517,7 +519,7 @@ export const walletHeaderSchema = {
   properties: {
     "x-wallet-address": {
       description:
-        "Carteira do operador que vai assinar a transação. Provisório: será substituído por autenticação assinada (SIWE) antes do fim dos mocks.",
+        "Carteira autodeclarada do solicitante da intenção em development/test; não autentica posse da chave.",
       pattern: patterns.address,
       type: "string",
     },

@@ -11,12 +11,19 @@ import {
   type TransactionAction,
   type TransactionRequestRecord,
   type WalletState,
+  UINT256_MAX,
 } from "../domain.js";
 import { problems } from "../problem.js";
 import { createFixtures, type Fixtures } from "./fixtures.js";
+import {
+  simulateAction,
+  simulateCreate,
+  type SimulatedOfferInput,
+} from "./simulate.js";
 
 /** Validade de uma intenção até o frontend informar o hash assinado. */
 export const REQUEST_TTL_MS = 15 * 60_000;
+export const MAX_MOCK_REQUESTS = 100;
 /** Acima disso sem sincronizar, a API sinaliza o listener como atrasado. */
 export const SYNC_STALE_AFTER_SECONDS = 60;
 
@@ -49,17 +56,13 @@ const functionNames: Record<TransactionAction, string> = {
   reject_offer: "rejectOffer",
 };
 
-/**
- * Estado em memória que imita o Postgres. Cada `buildApp` ganha o seu, então
- * testes não vazam estado entre si. As intenções mudam aqui (pending ->
- * submitted); ofertas, limites e eventos só mudariam pelo listener, que ainda
- * não existe, então ficam fixos.
- */
+/** Estado fictício por instância; intenções não confirmam nada e comandos de
+ * demonstração atualizam apenas as projeções em memória. */
 export class MockStore {
-  readonly #data: Fixtures;
+  #data: Fixtures;
   readonly #newId: () => string;
   readonly #now: () => Date;
-  readonly #requests: TransactionRequestRecord[] = [];
+  #requests: TransactionRequestRecord[] = [];
 
   constructor(now: () => Date, newId: () => string = randomUUID) {
     this.#newId = newId;
@@ -226,6 +229,29 @@ export class MockStore {
     return this.#requestView(this.#request(id));
   }
 
+  createSimulatedOffer(input: SimulatedOfferInput) {
+    const result = simulateCreate(
+      this.#data,
+      this.#now(),
+      this.#newId(),
+      input,
+    );
+    this.#data = result.data;
+    return { offer: this.#offerView(result.offer), operation: null };
+  }
+
+  simulatedOfferAction(id: string, action: "accept" | "reject" | "cancel") {
+    const result = simulateAction(this.#data, this.#now(), id, action);
+    this.#data = result.data;
+    return {
+      offer: this.#offerView(result.offer),
+      operation:
+        result.settlement === null
+          ? null
+          : this.#operationView(result.offer, result.settlement),
+    };
+  }
+
   // -------------------------------------------------------------------
   // Intenções
   // -------------------------------------------------------------------
@@ -251,6 +277,7 @@ export class MockStore {
       throw problems.notRegistered("counterparty");
     }
     const amount = BigInt(input.amountCents);
+    if (amount > UINT256_MAX) throw problems.invalidAmount();
     if (borrower.availableLimitCents < amount) {
       throw problems.insufficientLimit(borrower.availableLimitCents, amount);
     }
@@ -344,10 +371,16 @@ export class MockStore {
     if (this.#requests.some((other) => other.txHash === hash)) {
       throw problems.duplicateTransaction(hash);
     }
-    request.status = "submitted";
-    request.txHash = hash;
-    request.submittedAt = this.#now();
-    return this.#requestView(request);
+    const updated: TransactionRequestRecord = {
+      ...request,
+      status: "submitted",
+      txHash: hash,
+      submittedAt: this.#now(),
+    };
+    this.#requests = this.#requests.map((item) =>
+      item.id === request.id ? updated : item,
+    );
+    return this.#requestView(updated);
   }
 
   // -------------------------------------------------------------------
@@ -411,6 +444,8 @@ export class MockStore {
       | "txHash"
     >,
   ): TransactionRequestRecord {
+    if (this.#requests.length >= MAX_MOCK_REQUESTS)
+      throw problems.requestStoreFull();
     const createdAt = this.#now();
     const request: TransactionRequestRecord = {
       ...input,
@@ -422,7 +457,7 @@ export class MockStore {
       submittedAt: null,
       txHash: null,
     };
-    this.#requests.push(request);
+    this.#requests = [...this.#requests, request];
     return request;
   }
 

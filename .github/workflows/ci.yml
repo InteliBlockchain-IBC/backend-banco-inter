@@ -31,6 +31,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: inter_test
+          POSTGRES_PASSWORD: inter_test_only
+          POSTGRES_DB: banco_inter_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U inter_test -d banco_inter_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql://inter_test:inter_test_only@127.0.0.1:5432/banco_inter_test
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -38,6 +54,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npm run test:db
       # A cobertura entra no relatório por arquivo carregado; sem `--silent` o npm
       # interleavea o próprio banner e o `grep` da etapa seguinte não casa.
       - name: Coverage gate

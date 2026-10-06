@@ -11,6 +11,10 @@ export const documentedOperations = [
   "GET /api/sync-status",
   "GET /api/offers",
   "POST /api/offers",
+  "POST /api/mock/offers",
+  "POST /api/mock/offers/{id}/accept",
+  "POST /api/mock/offers/{id}/reject",
+  "POST /api/mock/offers/{id}/cancel",
   "GET /api/offers/{id}",
   "GET /api/offers/{id}/events",
   "POST /api/offers/{id}/accept",
@@ -26,7 +30,7 @@ export const documentedOperations = [
 ];
 
 test("generated OpenAPI is valid and documents every route", async (t) => {
-  const app = await buildApp({ logger: false });
+  const app = await buildApp({ logger: false, nodeEnv: "development" });
   t.after(() => app.close());
   await app.ready();
 
@@ -49,7 +53,7 @@ test("generated OpenAPI is valid and documents every route", async (t) => {
 });
 
 test("shared schemas are published as named components", async (t) => {
-  const app = await buildApp({ logger: false });
+  const app = await buildApp({ logger: false, nodeEnv: "development" });
   t.after(() => app.close());
   await app.ready();
 
@@ -92,7 +96,7 @@ test("shared schemas are published as named components", async (t) => {
 });
 
 test("the documentation UI is not part of the contract", async (t) => {
-  const app = await buildApp({ logger: false });
+  const app = await buildApp({ logger: false, nodeEnv: "development" });
   t.after(() => app.close());
   await app.ready();
 
