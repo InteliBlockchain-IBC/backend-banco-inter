@@ -1,12 +1,12 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "description": "API da PoC de crédito interfinanceiro overnight (Banco Inter x Inteli Blockchain). Nesta versão todas as respostas de /api/* são fictícias (x-data-source: mock). A API nunca assina transações: ela registra intenções e devolve contractCall para a carteira do operador. Guia completo em docs/api.md.",
+    "description": "API da PoC de crédito interfinanceiro overnight. Respostas /api/* de sucesso são fictícias (x-data-source: mock); erros usam Problem Details. Somente development/test expõem comandos simulados /api/mock e intenções de assinatura, sem autenticação de carteira. Nenhuma rota assina ou envia transações. Guia em docs/api.md.",
     "license": {
       "name": "MIT"
     },
     "title": "API do Backend Banco Inter",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "components": {
     "schemas": {
@@ -83,11 +83,11 @@
       },
       "Offer": {
         "additionalProperties": false,
-        "description": "Oferta direcionada confirmada on-chain (tabela offers + settlements).",
+        "description": "Oferta fictícia nesta versão; esquema previsto para uma projeção on-chain futura.",
         "properties": {
           "amountCents": {
             "description": "Valor emprestado. Centavos de BRLt como string decimal (uint256).",
-            "pattern": "^(0|[1-9][0-9]{0,29})$",
+            "pattern": "^(0|[1-9][0-9]{0,77})$",
             "type": "string"
           },
           "borrower": {
@@ -130,7 +130,7 @@
           },
           "onchainOfferId": {
             "description": "offerId do contrato (uint256 como string).",
-            "pattern": "^[1-9][0-9]{0,29}$",
+            "pattern": "^[1-9][0-9]{0,77}$",
             "type": "string"
           },
           "onchainStatusCode": {
@@ -217,7 +217,7 @@
       },
       "ChainEvent": {
         "additionalProperties": false,
-        "description": "Log do contrato indexado pelo listener (tabela chain_events).",
+        "description": "Evento fictício nesta versão; estrutura prevista para logs indexados.",
         "properties": {
           "args": {
             "additionalProperties": {
@@ -282,11 +282,11 @@
       },
       "Operation": {
         "additionalProperties": false,
-        "description": "Operação liquidada: o comprovante com partes, valor, taxa, horário e hash (RNF03).",
+        "description": "Comprovante fictício nesta versão: hash e bloco sintéticos, sem prova on-chain.",
         "properties": {
           "amountCents": {
             "description": "Valor liquidado. Centavos de BRLt como string decimal (uint256).",
-            "pattern": "^(0|[1-9][0-9]{0,29})$",
+            "pattern": "^(0|[1-9][0-9]{0,77})$",
             "type": "string"
           },
           "blockHash": {
@@ -365,11 +365,11 @@
       },
       "CreditLimit": {
         "additionalProperties": false,
-        "description": "Limite disponível de uma carteira, espelho de availableLimit() (tabela contract_wallet_state).",
+        "description": "Limite fictício nesta versão; futuro espelho de availableLimit().",
         "properties": {
           "availableLimitCents": {
             "description": "Limite disponível para tomar. Centavos de BRLt como string decimal (uint256).",
-            "pattern": "^(0|[1-9][0-9]{0,29})$",
+            "pattern": "^(0|[1-9][0-9]{0,77})$",
             "type": "string"
           },
           "institution": {
@@ -442,7 +442,7 @@
           },
           "newLimitCents": {
             "description": "Limite depois da mudança. Centavos de BRLt como string decimal (uint256).",
-            "pattern": "^(0|[1-9][0-9]{0,29})$",
+            "pattern": "^(0|[1-9][0-9]{0,77})$",
             "type": "string"
           },
           "offerId": {
@@ -453,7 +453,7 @@
           },
           "previousLimitCents": {
             "description": "Limite antes da mudança. Centavos de BRLt como string decimal (uint256).",
-            "pattern": "^(0|[1-9][0-9]{0,29})$",
+            "pattern": "^(0|[1-9][0-9]{0,77})$",
             "type": "string"
           },
           "txHash": {
@@ -556,7 +556,7 @@
             "properties": {
               "amountCents": {
                 "description": "Valor ofertado. Centavos de BRLt como string decimal (uint256).",
-                "pattern": "^(0|[1-9][0-9]{0,29})$",
+                "pattern": "^(0|[1-9][0-9]{0,77})$",
                 "type": "string"
               },
               "borrowerWallet": {
@@ -630,7 +630,7 @@
       },
       "Deployment": {
         "additionalProperties": false,
-        "description": "Contratos implantados que a API indexa.",
+        "description": "Endereços sintéticos de fixtures, não implantação verificada na Sepolia.",
         "properties": {
           "brlTokenAddress": {
             "description": "ERC-20 BRLt (2 casas decimais).",
@@ -677,7 +677,7 @@
       },
       "SyncStatus": {
         "additionalProperties": false,
-        "description": "Cursor do listener. Use stale para avisar na interface que os dados podem estar atrasados.",
+        "description": "Cursor fictício nesta versão; não indica sincronização real de listener.",
         "properties": {
           "chainId": {
             "type": "integer"
@@ -926,11 +926,11 @@
     "/api/deployment": {
       "get": {
         "operationId": "getDeployment",
-        "summary": "Contratos implantados",
+        "summary": "Endereços fictícios",
         "tags": [
           "rede"
         ],
-        "description": "Rede e endereços dos contratos. O frontend usa para montar as chamadas e checar se a carteira está na rede certa.",
+        "description": "Endereços sintéticos de demonstração. Não usar para construir ou enviar transações reais na Sepolia.",
         "responses": {
           "200": {
             "description": "Default Response",
@@ -971,11 +971,11 @@
     "/api/sync-status": {
       "get": {
         "operationId": "getSyncStatus",
-        "summary": "Estado da sincronização",
+        "summary": "Cursor simulado",
         "tags": [
           "rede"
         ],
-        "description": "Último bloco processado pelo listener e atraso em segundos. Quando stale for true, a interface deve avisar que os dados podem estar desatualizados.",
+        "description": "Cursor fictício da instância mock; não representa logs indexados nem disponibilidade de listener.",
         "responses": {
           "200": {
             "description": "Default Response",
@@ -1020,7 +1020,7 @@
         "tags": [
           "ofertas"
         ],
-        "description": "Ofertas confirmadas on-chain, mais recentes primeiro. Use wallet + role para a mesa de um banco e status=offered para as ofertas abertas.",
+        "description": "Ofertas fictícias da instância, mais recentes primeiro. Use wallet + role e status=offered para filtrar fixtures e ofertas simuladas.",
         "parameters": [
           {
             "schema": {
@@ -1142,7 +1142,7 @@
         "tags": [
           "ofertas"
         ],
-        "description": "Registra a intenção de criar uma oferta direcionada e devolve contractCall para a carteira assinar. A oferta só aparece em GET /api/offers depois que o listener indexar OfferCreated. A API antecipa as checagens do contrato: ofertante e tomador cadastrados, partes diferentes e limite do tomador >= amountCents.",
+        "description": "Em development/test, devolve uma intenção fictícia e contractCall com endereços sintéticos; X-Wallet-Address não autentica. A oferta não entra na lista. Nenhum listener existe para confirmar a transação.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1152,7 +1152,7 @@
                 "properties": {
                   "amountCents": {
                     "description": "Valor em centavos de BRLt, string decimal (100000000 = R$ 1.000.000,00).",
-                    "pattern": "^[1-9][0-9]{0,29}$",
+                    "pattern": "^[1-9][0-9]{0,77}$",
                     "type": "string"
                   },
                   "borrowerWallet": {
@@ -1200,7 +1200,7 @@
             "in": "header",
             "name": "x-wallet-address",
             "required": true,
-            "description": "Carteira do operador que vai assinar a transação. Provisório: será substituído por autenticação assinada (SIWE) antes do fim dos mocks."
+            "description": "Carteira autodeclarada do solicitante da intenção em development/test; não autentica posse da chave."
           }
         ],
         "responses": {
@@ -1258,6 +1258,16 @@
             }
           },
           "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {
               "application/json": {
@@ -1354,7 +1364,7 @@
         "tags": [
           "ofertas"
         ],
-        "description": "Histórico on-chain da oferta em ordem de bloco e log: OfferCreated, OfferAccepted, OfferSettled, OfferRejected, OfferCancelled ou OfferExpired.",
+        "description": "Histórico sintético da oferta em ordem de bloco e log, sem indexação on-chain.",
         "parameters": [
           {
             "schema": {
@@ -1434,7 +1444,7 @@
         "tags": [
           "ofertas"
         ],
-        "description": "Registra a intenção do tomador de aceitar. A API antecipa as checagens do contrato (oferta aberta, carteira tomadora, as duas partes cadastradas e limite suficiente). O aceite e a liquidação DvP acontecem na mesma transação on-chain.",
+        "description": "Em development/test, cria uma intenção fictícia para a carteira informada em X-Wallet-Address; compara essa carteira ao tomador da fixture e checa o limite mock. Não autentica nem liquida.",
         "parameters": [
           {
             "schema": {
@@ -1454,7 +1464,7 @@
             "in": "header",
             "name": "x-wallet-address",
             "required": true,
-            "description": "Carteira do operador que vai assinar a transação. Provisório: será substituído por autenticação assinada (SIWE) antes do fim dos mocks."
+            "description": "Carteira autodeclarada do solicitante da intenção em development/test; não autentica posse da chave."
           }
         ],
         "responses": {
@@ -1532,6 +1542,16 @@
             }
           },
           "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {
               "application/json": {
@@ -1551,7 +1571,7 @@
         "tags": [
           "ofertas"
         ],
-        "description": "Registra a intenção do tomador de recusar a oferta antes do vencimento. Estado final on-chain: rejected.",
+        "description": "Em development/test, registra intenção fictícia de rejeitar; compara a carteira declarada ao tomador, sem alterar a oferta.",
         "parameters": [
           {
             "schema": {
@@ -1571,7 +1591,7 @@
             "in": "header",
             "name": "x-wallet-address",
             "required": true,
-            "description": "Carteira do operador que vai assinar a transação. Provisório: será substituído por autenticação assinada (SIWE) antes do fim dos mocks."
+            "description": "Carteira autodeclarada do solicitante da intenção em development/test; não autentica posse da chave."
           }
         ],
         "responses": {
@@ -1649,6 +1669,16 @@
             }
           },
           "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {
               "application/json": {
@@ -1668,7 +1698,7 @@
         "tags": [
           "ofertas"
         ],
-        "description": "Registra a intenção do ofertante de retirar a oferta antes do aceite e do vencimento. Estado final on-chain: cancelled.",
+        "description": "Em development/test, registra intenção fictícia de cancelar; compara a carteira declarada ao ofertante, sem alterar a oferta.",
         "parameters": [
           {
             "schema": {
@@ -1688,7 +1718,7 @@
             "in": "header",
             "name": "x-wallet-address",
             "required": true,
-            "description": "Carteira do operador que vai assinar a transação. Provisório: será substituído por autenticação assinada (SIWE) antes do fim dos mocks."
+            "description": "Carteira autodeclarada do solicitante da intenção em development/test; não autentica posse da chave."
           }
         ],
         "responses": {
@@ -1774,6 +1804,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -1785,7 +1825,7 @@
         "tags": [
           "intenções"
         ],
-        "description": "Estado de uma intenção. O frontend pode consultar até ver confirmed ou failed (definidos pelo listener).",
+        "description": "Estado de uma intenção fictícia. Nesta versão ela não chega a confirmed/failed porque não há listener.",
         "parameters": [
           {
             "schema": {
@@ -1862,7 +1902,7 @@
         "tags": [
           "intenções"
         ],
-        "description": "Informa o hash da transação assinada. A intenção passa de pending para submitted. Só a carteira solicitante pode informar, uma única vez e antes de expiresAt.",
+        "description": "Registra um hash autodeclarado para uma intenção pending. X-Wallet-Address é comparado à carteira também autodeclarada na criação; não prova assinatura nem transmissão.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1903,7 +1943,7 @@
             "in": "header",
             "name": "x-wallet-address",
             "required": true,
-            "description": "Carteira do operador que vai assinar a transação. Provisório: será substituído por autenticação assinada (SIWE) antes do fim dos mocks."
+            "description": "Carteira autodeclarada do solicitante da intenção em development/test; não autentica posse da chave."
           }
         ],
         "responses": {
@@ -1983,6 +2023,797 @@
         }
       }
     },
+    "/api/mock/offers": {
+      "post": {
+        "operationId": "simulateOffer",
+        "summary": "Simular criação de oferta",
+        "tags": [
+          "simulação"
+        ],
+        "description": "Cria uma oferta e um evento sintéticos somente em memória. lenderWallet não autentica ninguém; não envia transação nem transfere ativos.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "lenderWallet": {
+                    "pattern": "^0x[0-9a-fA-F]{40}$",
+                    "type": "string"
+                  },
+                  "borrowerWallet": {
+                    "pattern": "^0x[0-9a-fA-F]{40}$",
+                    "type": "string"
+                  },
+                  "amountCents": {
+                    "pattern": "^[1-9][0-9]{0,77}$",
+                    "type": "string",
+                    "description": "Centavos decimais positivos até uint256."
+                  },
+                  "rateCdiBps": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "termDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "validitySeconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "lenderWallet",
+                  "borrowerWallet",
+                  "amountCents",
+                  "rateCdiBps",
+                  "termDays",
+                  "validitySeconds"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "offer": {
+                          "$ref": "#/components/schemas/Offer"
+                        },
+                        "operation": {
+                          "additionalProperties": false,
+                          "description": "Comprovante fictício nesta versão: hash e bloco sintéticos, sem prova on-chain.",
+                          "properties": {
+                            "amountCents": {
+                              "description": "Valor liquidado. Centavos de BRLt como string decimal (uint256).",
+                              "pattern": "^(0|[1-9][0-9]{0,77})$",
+                              "type": "string"
+                            },
+                            "blockHash": {
+                              "description": "Hash do bloco da liquidação.",
+                              "pattern": "^0x[0-9a-fA-F]{64}$",
+                              "type": "string"
+                            },
+                            "blockNumber": {
+                              "type": "integer"
+                            },
+                            "borrower": {
+                              "$ref": "#/components/schemas/Party"
+                            },
+                            "chainId": {
+                              "type": "integer"
+                            },
+                            "contractAddress": {
+                              "description": "Contrato CreditInterbankOffer.",
+                              "pattern": "^0x[0-9a-fA-F]{40}$",
+                              "type": "string"
+                            },
+                            "explorerUrl": {
+                              "description": "Link da transação no Etherscan da Sepolia.",
+                              "type": "string"
+                            },
+                            "lender": {
+                              "$ref": "#/components/schemas/Party"
+                            },
+                            "offerId": {
+                              "description": "Oferta liquidada.",
+                              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                              "type": "string"
+                            },
+                            "onchainOfferId": {
+                              "type": "string"
+                            },
+                            "positionTokenId": {
+                              "description": "tokenId do NFT CDIP emitido ao ofertante.",
+                              "type": "string"
+                            },
+                            "rateCdiBps": {
+                              "type": "integer"
+                            },
+                            "settledAt": {
+                              "description": "Horário do bloco da liquidação.",
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "termDays": {
+                              "type": "integer"
+                            },
+                            "txHash": {
+                              "description": "Transação de aceite e liquidação.",
+                              "pattern": "^0x[0-9a-fA-F]{64}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "txHash",
+                            "offerId",
+                            "onchainOfferId",
+                            "chainId",
+                            "contractAddress",
+                            "lender",
+                            "borrower",
+                            "amountCents",
+                            "rateCdiBps",
+                            "termDays",
+                            "positionTokenId",
+                            "blockNumber",
+                            "blockHash",
+                            "settledAt",
+                            "explorerUrl"
+                          ],
+                          "type": "object",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "offer",
+                        "operation"
+                      ],
+                      "type": "object"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/offers/{id}/accept": {
+      "post": {
+        "operationId": "simulateAcceptOffer",
+        "summary": "Simular accept de oferta",
+        "tags": [
+          "simulação"
+        ],
+        "description": "Simula accept de uma oferta em memória; não verifica identidade nem assina ou envia transações. Hashes e eventos são fictícios.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Id da oferta na API."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "offer": {
+                          "$ref": "#/components/schemas/Offer"
+                        },
+                        "operation": {
+                          "additionalProperties": false,
+                          "description": "Comprovante fictício nesta versão: hash e bloco sintéticos, sem prova on-chain.",
+                          "properties": {
+                            "amountCents": {
+                              "description": "Valor liquidado. Centavos de BRLt como string decimal (uint256).",
+                              "pattern": "^(0|[1-9][0-9]{0,77})$",
+                              "type": "string"
+                            },
+                            "blockHash": {
+                              "description": "Hash do bloco da liquidação.",
+                              "pattern": "^0x[0-9a-fA-F]{64}$",
+                              "type": "string"
+                            },
+                            "blockNumber": {
+                              "type": "integer"
+                            },
+                            "borrower": {
+                              "$ref": "#/components/schemas/Party"
+                            },
+                            "chainId": {
+                              "type": "integer"
+                            },
+                            "contractAddress": {
+                              "description": "Contrato CreditInterbankOffer.",
+                              "pattern": "^0x[0-9a-fA-F]{40}$",
+                              "type": "string"
+                            },
+                            "explorerUrl": {
+                              "description": "Link da transação no Etherscan da Sepolia.",
+                              "type": "string"
+                            },
+                            "lender": {
+                              "$ref": "#/components/schemas/Party"
+                            },
+                            "offerId": {
+                              "description": "Oferta liquidada.",
+                              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                              "type": "string"
+                            },
+                            "onchainOfferId": {
+                              "type": "string"
+                            },
+                            "positionTokenId": {
+                              "description": "tokenId do NFT CDIP emitido ao ofertante.",
+                              "type": "string"
+                            },
+                            "rateCdiBps": {
+                              "type": "integer"
+                            },
+                            "settledAt": {
+                              "description": "Horário do bloco da liquidação.",
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "termDays": {
+                              "type": "integer"
+                            },
+                            "txHash": {
+                              "description": "Transação de aceite e liquidação.",
+                              "pattern": "^0x[0-9a-fA-F]{64}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "txHash",
+                            "offerId",
+                            "onchainOfferId",
+                            "chainId",
+                            "contractAddress",
+                            "lender",
+                            "borrower",
+                            "amountCents",
+                            "rateCdiBps",
+                            "termDays",
+                            "positionTokenId",
+                            "blockNumber",
+                            "blockHash",
+                            "settledAt",
+                            "explorerUrl"
+                          ],
+                          "type": "object",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "offer",
+                        "operation"
+                      ],
+                      "type": "object"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/offers/{id}/reject": {
+      "post": {
+        "operationId": "simulateRejectOffer",
+        "summary": "Simular reject de oferta",
+        "tags": [
+          "simulação"
+        ],
+        "description": "Simula reject de uma oferta em memória; não verifica identidade nem assina ou envia transações. Hashes e eventos são fictícios.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Id da oferta na API."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "offer": {
+                          "$ref": "#/components/schemas/Offer"
+                        },
+                        "operation": {
+                          "additionalProperties": false,
+                          "description": "Comprovante fictício nesta versão: hash e bloco sintéticos, sem prova on-chain.",
+                          "properties": {
+                            "amountCents": {
+                              "description": "Valor liquidado. Centavos de BRLt como string decimal (uint256).",
+                              "pattern": "^(0|[1-9][0-9]{0,77})$",
+                              "type": "string"
+                            },
+                            "blockHash": {
+                              "description": "Hash do bloco da liquidação.",
+                              "pattern": "^0x[0-9a-fA-F]{64}$",
+                              "type": "string"
+                            },
+                            "blockNumber": {
+                              "type": "integer"
+                            },
+                            "borrower": {
+                              "$ref": "#/components/schemas/Party"
+                            },
+                            "chainId": {
+                              "type": "integer"
+                            },
+                            "contractAddress": {
+                              "description": "Contrato CreditInterbankOffer.",
+                              "pattern": "^0x[0-9a-fA-F]{40}$",
+                              "type": "string"
+                            },
+                            "explorerUrl": {
+                              "description": "Link da transação no Etherscan da Sepolia.",
+                              "type": "string"
+                            },
+                            "lender": {
+                              "$ref": "#/components/schemas/Party"
+                            },
+                            "offerId": {
+                              "description": "Oferta liquidada.",
+                              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                              "type": "string"
+                            },
+                            "onchainOfferId": {
+                              "type": "string"
+                            },
+                            "positionTokenId": {
+                              "description": "tokenId do NFT CDIP emitido ao ofertante.",
+                              "type": "string"
+                            },
+                            "rateCdiBps": {
+                              "type": "integer"
+                            },
+                            "settledAt": {
+                              "description": "Horário do bloco da liquidação.",
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "termDays": {
+                              "type": "integer"
+                            },
+                            "txHash": {
+                              "description": "Transação de aceite e liquidação.",
+                              "pattern": "^0x[0-9a-fA-F]{64}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "txHash",
+                            "offerId",
+                            "onchainOfferId",
+                            "chainId",
+                            "contractAddress",
+                            "lender",
+                            "borrower",
+                            "amountCents",
+                            "rateCdiBps",
+                            "termDays",
+                            "positionTokenId",
+                            "blockNumber",
+                            "blockHash",
+                            "settledAt",
+                            "explorerUrl"
+                          ],
+                          "type": "object",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "offer",
+                        "operation"
+                      ],
+                      "type": "object"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mock/offers/{id}/cancel": {
+      "post": {
+        "operationId": "simulateCancelOffer",
+        "summary": "Simular cancel de oferta",
+        "tags": [
+          "simulação"
+        ],
+        "description": "Simula cancel de uma oferta em memória; não verifica identidade nem assina ou envia transações. Hashes e eventos são fictícios.",
+        "parameters": [
+          {
+            "schema": {
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Id da oferta na API."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "offer": {
+                          "$ref": "#/components/schemas/Offer"
+                        },
+                        "operation": {
+                          "additionalProperties": false,
+                          "description": "Comprovante fictício nesta versão: hash e bloco sintéticos, sem prova on-chain.",
+                          "properties": {
+                            "amountCents": {
+                              "description": "Valor liquidado. Centavos de BRLt como string decimal (uint256).",
+                              "pattern": "^(0|[1-9][0-9]{0,77})$",
+                              "type": "string"
+                            },
+                            "blockHash": {
+                              "description": "Hash do bloco da liquidação.",
+                              "pattern": "^0x[0-9a-fA-F]{64}$",
+                              "type": "string"
+                            },
+                            "blockNumber": {
+                              "type": "integer"
+                            },
+                            "borrower": {
+                              "$ref": "#/components/schemas/Party"
+                            },
+                            "chainId": {
+                              "type": "integer"
+                            },
+                            "contractAddress": {
+                              "description": "Contrato CreditInterbankOffer.",
+                              "pattern": "^0x[0-9a-fA-F]{40}$",
+                              "type": "string"
+                            },
+                            "explorerUrl": {
+                              "description": "Link da transação no Etherscan da Sepolia.",
+                              "type": "string"
+                            },
+                            "lender": {
+                              "$ref": "#/components/schemas/Party"
+                            },
+                            "offerId": {
+                              "description": "Oferta liquidada.",
+                              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                              "type": "string"
+                            },
+                            "onchainOfferId": {
+                              "type": "string"
+                            },
+                            "positionTokenId": {
+                              "description": "tokenId do NFT CDIP emitido ao ofertante.",
+                              "type": "string"
+                            },
+                            "rateCdiBps": {
+                              "type": "integer"
+                            },
+                            "settledAt": {
+                              "description": "Horário do bloco da liquidação.",
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "termDays": {
+                              "type": "integer"
+                            },
+                            "txHash": {
+                              "description": "Transação de aceite e liquidação.",
+                              "pattern": "^0x[0-9a-fA-F]{64}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "txHash",
+                            "offerId",
+                            "onchainOfferId",
+                            "chainId",
+                            "contractAddress",
+                            "lender",
+                            "borrower",
+                            "amountCents",
+                            "rateCdiBps",
+                            "termDays",
+                            "positionTokenId",
+                            "blockNumber",
+                            "blockHash",
+                            "settledAt",
+                            "explorerUrl"
+                          ],
+                          "type": "object",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "offer",
+                        "operation"
+                      ],
+                      "type": "object"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/operations": {
       "get": {
         "operationId": "listOperations",
@@ -1990,7 +2821,7 @@
         "tags": [
           "operações"
         ],
-        "description": "Histórico de operações liquidadas (RF05), mais recentes primeiro. Cada item é o comprovante da liquidação DvP.",
+        "description": "Histórico de operações fictícias (fixtures ou simulação), mais recentes primeiro; hashes não provam liquidação real.",
         "parameters": [
           {
             "schema": {
@@ -2083,7 +2914,7 @@
         "tags": [
           "operações"
         ],
-        "description": "Comprovante de uma operação pelo hash da liquidação.",
+        "description": "Comprovante fictício por hash sintético, sem prova on-chain.",
         "parameters": [
           {
             "schema": {
@@ -2160,7 +2991,7 @@
         "tags": [
           "limites"
         ],
-        "description": "Limites disponíveis por carteira, maior limite primeiro (RF04). Para escolher o tomador de uma nova oferta: registered=true, minAvailableCents=<valor> e excludeWallet=<carteira do operador>.",
+        "description": "Limites fictícios por carteira, maior primeiro. Para escolher tomador de uma simulação: registered=true, minAvailableCents=<valor> e excludeWallet=<carteira ofertante>.",
         "parameters": [
           {
             "schema": {
@@ -2174,7 +3005,7 @@
           },
           {
             "schema": {
-              "pattern": "^(0|[1-9][0-9]{0,29})$",
+              "pattern": "^(0|[1-9][0-9]{0,77})$",
               "type": "string"
             },
             "in": "query",
@@ -2189,7 +3020,7 @@
             "in": "query",
             "name": "registered",
             "required": false,
-            "description": "true: só carteiras autorizadas no contrato."
+            "description": "true: só carteiras marcadas como cadastradas nas fixtures."
           }
         ],
         "responses": {
@@ -2249,7 +3080,7 @@
         "tags": [
           "limites"
         ],
-        "description": "Limite atual de uma carteira.",
+        "description": "Limite fictício atual de uma carteira.",
         "parameters": [
           {
             "schema": {
@@ -2326,7 +3157,7 @@
         "tags": [
           "limites"
         ],
-        "description": "Mudanças de limite da carteira, mais recentes primeiro: ajustes do admin e débitos das liquidações.",
+        "description": "Histórico sintético de mudanças de limite, mais recentes primeiro: ajustes e débitos de liquidações fictícias.",
         "parameters": [
           {
             "schema": {
@@ -2472,15 +3303,15 @@
   ],
   "tags": [
     {
-      "description": "Ofertas confirmadas on-chain e intenções de criar, aceitar, rejeitar e cancelar.",
+      "description": "Ofertas fictícias da instância e, em development/test, intenções sem autenticação.",
       "name": "ofertas"
     },
     {
-      "description": "Ciclo de uma intenção: pending até o frontend informar o hash, depois submitted até o listener confirmar.",
+      "description": "Intenção fictícia pending/submitted; não há listener para confirmar ou reprovar.",
       "name": "intenções"
     },
     {
-      "description": "Histórico de liquidações DvP (comprovantes).",
+      "description": "Comprovantes fictícios de liquidações simuladas.",
       "name": "operações"
     },
     {
@@ -2488,7 +3319,7 @@
       "name": "limites"
     },
     {
-      "description": "Contratos implantados e estado do listener.",
+      "description": "Endereços e cursor sintéticos da rede.",
       "name": "rede"
     },
     {
@@ -2498,6 +3329,10 @@
     {
       "description": "Contrato OpenAPI servido pela aplicação.",
       "name": "documentação"
+    },
+    {
+      "description": "Transições DvP fictícias, sem autenticação ou transferência.",
+      "name": "simulação"
     }
   ]
 }

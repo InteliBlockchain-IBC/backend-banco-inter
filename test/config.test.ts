@@ -5,7 +5,7 @@ import { ConfigurationError, loadConfig } from "../src/config.js";
 test("uses safe configuration defaults", () => {
   assert.deepEqual(loadConfig({}), {
     host: "127.0.0.1",
-    nodeEnv: "development",
+    nodeEnv: "production",
     port: 3000,
   });
 });

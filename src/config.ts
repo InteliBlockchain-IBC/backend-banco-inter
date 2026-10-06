@@ -30,7 +30,7 @@ export class ConfigurationError extends Error {
  * ponto de entrada; hoje existe exatamente uma leitura ambiente, em `server.ts`.
  */
 export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
-  const nodeEnv = env.NODE_ENV ?? "development";
+  const nodeEnv = env.NODE_ENV ?? "production";
   if (nodeEnvironments[nodeEnv] !== true) {
     throw new ConfigurationError(
       "NODE_ENV deve ser development, production ou test.",

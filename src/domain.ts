@@ -12,6 +12,7 @@ export type Address = `0x${string}`;
 export type Hash = `0x${string}`;
 
 export const SEPOLIA_CHAIN_ID = 11155111;
+export const UINT256_MAX = (1n << 256n) - 1n;
 
 export const offerStatuses = [
   "offered",

@@ -18,7 +18,11 @@ export async function setup(
     },
     now: () => new Date(current),
   };
-  const app = await buildApp({ logger: false, now: clock.now });
+  const app = await buildApp({
+    logger: false,
+    nodeEnv: "test",
+    now: clock.now,
+  });
   t.after(() => app.close());
   return { app, clock };
 }

@@ -94,6 +94,13 @@ export const problems = {
       "Limite insuficiente",
       `O tomador tem ${available} centavos de limite disponível e a oferta pede ${requested}.`,
     ),
+  invalidAmount: () =>
+    new ApiProblem(
+      400,
+      "invalid-amount",
+      "Valor inválido",
+      "amountCents deve caber em uint256 e ser positivo.",
+    ),
   invalidCounterparty: () =>
     new ApiProblem(
       422,
@@ -151,5 +158,12 @@ export const problems = {
       "request-in-progress",
       "Já existe uma intenção em andamento",
       `A intenção ${requestId} para esta ação ainda está pending ou submitted.`,
+    ),
+  requestStoreFull: () =>
+    new ApiProblem(
+      503,
+      "request-store-full",
+      "Simulador cheio",
+      "O simulador atingiu o limite de intenções nesta instância.",
     ),
 } as const;

@@ -1,6 +1,6 @@
 # Backend — Protocolo de crédito interfinanceiro
 
-API e indexador da Prova de Conceito que automatiza o ciclo de crédito interbancário (CDI) overnight com contratos inteligentes. Desenvolvida pelo **Inteli Blockchain** em parceria com o **Banco Inter** (Digital Assets & Emerging Technologies).
+API mock e esquema de persistência da prova de conceito de crédito interbancário overnight, desenvolvidos pelo **Inteli Blockchain** com o **Banco Inter** (Digital Assets & Emerging Technologies).
 
 > Projeto acadêmico e experimental. Opera exclusivamente em testnet (Sepolia), sem conexão com sistemas de produção e sem movimentação de ativos reais.
 
@@ -10,25 +10,21 @@ API e indexador da Prova de Conceito que automatiza o ciclo de crédito interban
 
 Bancos emprestam reservas entre si por um dia útil para fechar o caixa dentro do mínimo regulatório — a taxa média dessas operações é o CDI. Hoje a negociação leva minutos e a liquidação leva horas, por causa de checagem manual de limite e conciliação. Nessa janela existe **risco de contraparte**: a operação foi combinada mas ainda não foi consumada.
 
-A PoC elimina a janela. O contrato inteligente valida o limite e executa a troca — token de crédito de um lado, ativo de liquidação do outro — em uma única transação atômica (DvP, *delivery versus payment*). Ou as duas pernas acontecem, ou nenhuma.
+A PoC propõe reduzir essa janela. No fluxo on-chain pretendido, o contrato inteligente valida o limite e executa a troca — token de crédito de um lado, ativo de liquidação do outro — em uma única transação atômica (DvP, *delivery versus payment*). Ou as duas pernas acontecem, ou nenhuma; a API deste repositório ainda não executa esse fluxo.
 
 ## O papel deste repositório
 
 O projeto tem três repositórios: contratos, frontend e este. Aqui fica a camada Web2 — a que guarda o que não pode ir para uma rede pública e a que traduz o que acontece on-chain.
 
-Três responsabilidades, e nada além delas:
-
-1. **API de consulta e registro** — ofertas, operações, limites e histórico (RF04, RF05, RF06).
-2. **Listener de eventos** — escuta o contrato na Sepolia e grava status, hash, bloco, partes e taxa (RNF03).
-3. **Persistência** — contrapartes, limites, histórico e o cursor de sincronização.
-
-O que ele explicitamente **não** faz: assinar transações. Quem assina é a carteira do operador, no frontend.
+Neste repositório estão a API de leitura com dados fictícios, os comandos de simulação DvP e o modelo SQL para a futura projeção dos eventos da Sepolia. O backend não assina, transmite ou confirma transações.
 
 ## Estado atual
 
-Versão `0.2.0`. Todas as rotas da API existem com o **payload final**, mas respondem com **dados fictícios em memória**: ainda não há conexão da API com PostgreSQL, driver `pg`, `viem`, RPC nem ABI ligados. O Docker Compose disponibiliza um PostgreSQL local com o esquema inicial.
+Versão `0.3.0`. Leituras `/api/*` devolvem somente fixtures por instância; ainda não existe conexão do servidor ao PostgreSQL, RPC ou listener. O driver `pg`, a migration inicial e o runner SQL estão disponíveis, mas **executar a migration não conecta a API ao banco**. A integração com frontend, contratos e indexação depende de outras entregas.
 
-Toda resposta de `/api/*` carrega `x-data-source: mock` no cabeçalho e `meta.source: "mock"` no corpo, para que ninguém confunda fixture com dado real. As rotas de escrita validam as mesmas regras do contrato e guardam as intenções em memória até o processo reiniciar.
+Toda resposta **bem-sucedida** de `/api/*` traz `X-Data-Source: mock` e `meta.source: "mock"`; erros são `application/problem+json` sem marcador. Hashes, blocos, endereços e comprovantes expostos são sintéticos, não prova de liquidação.
+
+Em `development`/`test`, `/api/mock/offers` cria ofertas fictícias e `/api/mock/offers/:id/{accept,reject,cancel}` altera ofertas, eventos, limites e operações **apenas em memória**. Nesse ambiente também existem intenções de assinatura sob `/api/offers` e envio de hash sob `/api/transaction-requests`. `X-Wallet-Address` é dado fornecido pelo cliente, **não autenticação**; uma intenção não liquida nada e não alimenta o histórico sem listener. Em `production` todos os `POST` são 404 e não aparecem no OpenAPI servido. Sem `NODE_ENV`, tanto `buildApp()` quanto o servidor usam **production** por segurança.
 
 ## Começando
 
@@ -87,7 +83,13 @@ npm run build
 npm run start
 ```
 
-O servidor sobe em `HOST` e `PORT` (padrão `127.0.0.1:3000`). Para carregar variáveis de um arquivo `.env`, copie [`.env.example`](.env.example) e aponte explicitamente:
+Para exercitar os POSTs fictícios da coleção, inicie explicitamente em modo de desenvolvimento local:
+
+```bash
+NODE_ENV=development npm run start
+```
+
+O servidor sobe em `HOST` e `PORT` (padrão `127.0.0.1:3000`). Para carregar variáveis de um `.env` local com `NODE_ENV=development`, copie [`.env.example`](.env.example) e aponte explicitamente:
 
 ```bash
 node --env-file=.env dist/src/server.js
@@ -99,6 +101,8 @@ node --env-file=.env dist/src/server.js
 | --- | --- |
 | `npm run build` | Compila o TypeScript para `dist/` |
 | `npm run start` | Sobe o servidor compilado |
+| `npm run db:migrate` | Aplica migrations SQL com `DATABASE_URL` (PostgreSQL separado da API) |
+| `npm run test:db` | Testa migration em schema descartável com `TEST_DATABASE_URL` |
 | `npm run docs:export` | Regera `docs/openapi.json` e a coleção Postman |
 | `npm test` | Roda a suíte de testes |
 | `npm run coverage` | Roda os testes com cobertura |
@@ -112,30 +116,18 @@ node --env-file=.env dist/src/server.js
 
 Referência completa, com payloads, erros e exemplos: **[`docs/api.md`](docs/api.md)**. Para testar sem ler código, importe a coleção [`docs/collection/backend-banco-inter.postman_collection.json`](docs/collection/backend-banco-inter.postman_collection.json) no Postman, Bruno ou Insomnia.
 
-| Método | Caminho | Descrição |
+| Método | Caminho | Disponibilidade |
 | --- | --- | --- |
-| GET | `/api/deployment` | Rede e endereços dos contratos |
-| GET | `/api/sync-status` | Último bloco indexado e atraso do listener |
-| GET | `/api/offers` | Ofertas, com filtros por status, carteira e lado |
-| POST | `/api/offers` | Intenção de criar oferta direcionada |
-| GET | `/api/offers/:id` | Detalhe da oferta, com a liquidação |
-| GET | `/api/offers/:id/events` | Histórico on-chain da oferta |
-| POST | `/api/offers/:id/accept` | Intenção de aceitar (tomador) |
-| POST | `/api/offers/:id/reject` | Intenção de rejeitar (tomador) |
-| POST | `/api/offers/:id/cancel` | Intenção de cancelar (ofertante) |
-| GET | `/api/transaction-requests/:id` | Estado de uma intenção |
-| POST | `/api/transaction-requests/:id/submission` | Informa o hash assinado pela carteira |
-| GET | `/api/operations` | Histórico de operações liquidadas |
-| GET | `/api/operations/:txHash` | Comprovante da operação |
-| GET | `/api/credit-limits` | Limites por carteira (e filtro de tomadores elegíveis) |
-| GET | `/api/credit-limits/:wallet` | Limite de uma carteira |
-| GET | `/api/credit-limits/:wallet/history` | Histórico de mudanças de limite |
-| GET | `/health` | Liveness. Devolve `{ "status": "ok" }` |
-| GET | `/ready` | Readiness. Lista dependências, hoje nenhuma |
-| GET | `/openapi.json` | Documento OpenAPI `0.2.0` servido pela aplicação |
-| GET | `/docs` | Interface de documentação a partir do contrato |
+| GET | `/api/deployment`, `/api/sync-status` | Endereços e cursor **fictícios** |
+| GET | `/api/offers`, `/api/offers/:id`, `/api/offers/:id/events` | Ofertas e eventos fictícios |
+| GET | `/api/operations`, `/api/operations/:txHash` | Operações e comprovantes fictícios |
+| GET | `/api/credit-limits`, `/api/credit-limits/:wallet`, `/api/credit-limits/:wallet/history` | Limites e histórico fictícios |
+| GET | `/api/transaction-requests/:id` | Leitura de intenções da instância |
+| POST | `/api/mock/offers`, `/api/mock/offers/:id/{accept,reject,cancel}` | **Somente development/test**; simulação sem autenticação ou transação |
+| POST | `/api/offers`, `/api/offers/:id/{accept,reject,cancel}`, `/api/transaction-requests/:id/submission` | **Somente development/test**; intenções, não execução |
+| GET | `/health`, `/ready`, `/openapi.json`, `/docs` | Saúde e documentação da configuração ativa |
 
-A API não assina transações: as rotas `POST` registram a **intenção** e devolvem `contractCall` para a carteira do operador assinar. Elas exigem o cabeçalho `X-Wallet-Address`, provisório até existir login assinado.
+O OpenAPI exportado e a coleção Postman representam o ambiente `development`. O OpenAPI servido em `production` omite as operações POST. Para aplicar o esquema a um PostgreSQL escolhido explicitamente, defina `DATABASE_URL` e execute `npm run db:migrate`; o comando não popula fixtures nem altera a fonte de dados da API.
 
 Erros usam `application/problem+json`, com `type`, `title`, `status`, `detail` e `correlationId`; a lista de tipos está em [`docs/api.md`](docs/api.md#3-erros). Nenhuma resposta expõe stack trace, SQL, URL de RPC ou variável de ambiente.
 
@@ -143,119 +135,82 @@ Erros usam `application/problem+json`, com `type`, `title`, `status`, `detail` e
 
 ## Arquitetura
 
-O desenho alvo do sistema. As arestas sólidas dentro do bloco Web2 são o que já existe; o listener, o Postgres e a ligação com a Sepolia entram nas semanas 3 e 4.
+O diagrama separa o que esta base executa (setas sólidas) das integrações pretendidas (tracejadas). O frontend e o contrato ficam em repositórios separados; nenhum fluxo externo está ligado à API atual.
 
 ```mermaid
 flowchart LR
-    OP(["Operador<br/>da mesa"])
+    FE["Frontend (externo)"]
+    W["Carteira do operador"]
+    RPC["RPC Sepolia"]
+    DVP["Contrato DvP"]
+    BRL["BRLt · ERC-20"]
+    CDIP["CDIP · NFT ERC-721"]
+    API["Fastify · TypeScript"]
+    MOCK["Fixtures + transições em memória"]
+    MIG["Runner SQL + schema"]
+    DB[("PostgreSQL")]
+    LIS["Listener planejado"]
 
-    subgraph CLIENT["Cliente"]
-        FE["Mesa de Operações<br/><i>React</i>"]
-        WALLET["Carteira<br/><i>MetaMask</i>"]
-    end
-
-    subgraph WEB2["Web2 — este repositório"]
-        API["API REST<br/><i>Fastify 5 · TypeScript strict</i>"]
-        LIS["Listener de eventos<br/><i>viem · polling + cursor</i>"]
-        DB[("PostgreSQL<br/><i>pg · migrations SQL</i>")]
-    end
-
-    subgraph WEB3["Web3 — Sepolia"]
-        RPC["RPC provider"]
-        DVP["Contrato de liquidação<br/><i>DvP</i>"]
-        LIM[["Limites on-chain<br/><b>fonte de verdade</b>"]]
-        TOKEN["Token de CDI<br/><i>ERC-20</i>"]
-    end
-
-    ABI[/"ABI versionado"/]
-
-    OP --> FE
-    OP --> WALLET
-
-    FE -->|"1 · registra intenção"| API
-    API -->|"2 · grava pendente"| DB
-    API -->|"3 · args normalizados"| FE
-    FE -->|"4 · monta a chamada"| WALLET
-    WALLET -->|"5 · assina e envia"| RPC
-    RPC --> DVP
-    DVP -->|"6 · valida limite"| LIM
-    DVP <-->|"7 · swap atômico DvP"| TOKEN
-    DVP -.->|"8 · emite evento"| RPC
-    RPC -.->|"9 · polling getLogs"| LIS
-    LIS -->|"10 · UPSERT idempotente"| DB
-    FE -.->|"11 · consulta periódica"| API
-
-    ABI -.-> LIS
-    ABI -.-> FE
+    FE -.->|"integração futura"| API
+    FE -.-> W
+    W -.-> RPC
+    RPC -.-> DVP
+    DVP -.-> BRL
+    DVP -.-> CDIP
+    API --> MOCK
+    MIG -->|"migração explícita"| DB
+    LIS -.->|"leitura futura"| RPC
+    LIS -.->|"projeção futura"| DB
+    API -.->|"consultas futuras"| DB
 ```
 
-Setas tracejadas são assíncronas. O frontend e o listener descobrem mudanças por polling; não há rota SSE nem `eth_subscribe` no serviço atual.
+O contrato é a autoridade financeira. O banco será uma projeção reconstruível de eventos, não executor da troca. Antes de expor mutações reais, faltam autenticação de carteira e autorização institucional, persistência de intenções, listener com replay/reorg e integração de consumidor. Orçamento de latência é uma hipótese de projeto, **não** um SLO medido.
 
-### Decisões
-
-- **O backend não assina transações.** `viem` entra apenas como leitura. Quem assina é a carteira do operador, então o backend nunca fica no caminho crítico da liquidação.
-- **O listener é um cursor, não um watcher.** Guarda o último bloco processado; qualquer parada — restart, deploy, queda de rede — é recuperada na volta.
-- **A gravação é idempotente.** `UPSERT` por `(tx_hash, log_index)`. Reprocessar o mesmo evento não duplica histórico.
-- **O Postgres é espelho, nunca fonte de verdade.** Em divergência, a chain está certa.
-
-O raciocínio completo — alternativas descartadas, orçamento de latência do RNF02, riscos conhecidos e caminho para produção — está em [`docs/arquitetura.md`](docs/arquitetura.md).
+Tecnologias, alternativas e riscos: [`docs/arquitetura.md`](docs/arquitetura.md).
 
 ## Estrutura
 
 ```
 src/
-  app.ts              montagem do Fastify, plugins, erros e OpenAPI
-  server.ts           bootstrap e ciclo de vida do processo
-  config.ts           leitura e validação das variáveis de ambiente
-  domain.ts           tipos e unidades espelhando o contrato e a migration
-  schemas.ts          esquemas JSON compartilhados (componentes do OpenAPI)
-  problem.ts          erros em application/problem+json
-  http.ts             envelope { data, meta } das respostas
-  mock/
-    fixtures.ts       massa fictícia coerente com o contrato
-    store.ts          estado em memória no lugar do Postgres
-  routes/
-    health.ts         liveness e readiness
-    chain.ts          contratos implantados e estado do listener
-    offers.ts         ofertas e intenções de criar, aceitar, rejeitar e cancelar
-    transaction-requests.ts  consulta de intenção e envio do hash
-    operations.ts     operações liquidadas
-    credit-limits.ts  limites e histórico
+  app.ts              composição do Fastify, ambientes, erros e OpenAPI
+  server.ts           bootstrap e ciclo de vida
+  domain.ts           tipos e unidades do contrato DvP
+  schemas.ts          schemas JSON/OpenAPI
+  db/migrate.ts       runner PostgreSQL versionado e serializado
+  mock/               fixtures, projeções e transições fictícias
+  routes/             consultas, intenções e simulação
 scripts/
-  export-docs.ts      gera docs/openapi.json e a coleção Postman
+  migrate.ts          comando explícito de migrations
+  export-docs.ts      OpenAPI e coleção Postman do ambiente development
 migrations/           esquema SQL versionado
-test/                 testes com node:test e injeção do Fastify
-docs/                 arquitetura, modelagem, API, OpenAPI e coleção
+test/                 testes HTTP e integração PostgreSQL opcional
+docs/                 arquitetura, modelagem e referência de API
 ```
 
 ## Testes e CI
 
-Os testes usam `node:test` e a injeção do Fastify — não abrem porta nem dependem de serviço externo.
+`npm test` executa testes HTTP com `app.inject()` e testes de migration quando `TEST_DATABASE_URL` estiver definido. `npm run test:db` **exige** essa variável e usa um schema descartável em um PostgreSQL de teste; não execute contra um banco de produção. O CI provisiona PostgreSQL 16 efêmero e roda a migração real, idempotência, concorrência e rollback. O servidor não abre conexão com o banco.
 
-O workflow em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) divide as verificações em dois jobs:
+O workflow em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executa formatação, lint, typecheck, build, cobertura, OpenAPI, testes de banco e auditoria de dependências. A aprovação local não substitui o resultado do CI remoto.
 
-- **`quality`** — `format:check`, `lint`, `typecheck` e `build`
-- **`test`** — `coverage`, `openapi:validate` e `npm audit --omit=dev --audit-level=high`
+## Escopo dos requisitos
 
-## Requisitos atendidos por este repositório
-
-| Requisito | Onde |
+| Requisito | Estado nesta base |
 | --- | --- |
-| RF04 — painel de operações | API serve limites, taxas e status |
-| RF05 — histórico de operações | API + Postgres |
-| RF06 — cancelamento | API + evento `Cancelled` indexado |
-| RNF01 — apenas testnet | Sepolia, sem chave de produção |
-| RNF02 — liquidação visível em até 30s | Listener por evento; orçamento medido em [`docs/arquitetura.md`](docs/arquitetura.md) |
-| RNF03 — rastreabilidade | Timestamp, partes, taxa e hash gravados pelo listener |
-| RNF04 — código aberto | Licença MIT, sem dependência proprietária |
+| RF04/05 | Consultas e histórico **mock**; sem integração à mesa nem indexação |
+| RF06 | Cancelamento **simulado**; o contrato real não é chamado |
+| RNF01 | Fixtures rotuladas Sepolia; sem conexão RPC |
+| RNF02 | Meta de latência pendente de listener, integração e medição |
+| RNF03 | Campos de trilha no modelo e fixtures; sem trilha observada on-chain |
+| RNF04 | Código e licença MIT disponíveis no repositório |
 
-RF01 a RF03 são atendidos pelo repositório de contratos, com apoio deste.
+RF01–RF03 dependem do trabalho de contratos e da validação entre equipes; não são concluídos por esta API mock.
 
 ## Documentação
-- [`docs/arquitetura.md`](docs/arquitetura.md) traz componentes, decisões, orçamento de latência, riscos e caminho para produção. É um documento de outro time, que entrou em `main` pelo PR #2; o backend é consumidor dele, não autor. O transporte, o orçamento de latência e a seção de reorg descrevem o desenho aceito por este repositório, e qualquer mudança nele depende do time autor.
-- [`docs/api.md`](docs/api.md) — referência da API: rotas, payloads, erros, estados e massa mock.
-- [`docs/openapi.json`](docs/openapi.json) e [`docs/collection/`](docs/collection/) — contrato OpenAPI e coleção Postman gerados por `npm run docs:export`.
-- [`docs/modelagem-banco.md`](docs/modelagem-banco.md) — modelo entidade-relacionamento alinhado ao contrato DvP; esquema SQL em [`migrations/001_initial_schema.sql`](migrations/001_initial_schema.sql).
+- [`docs/arquitetura.md`](docs/arquitetura.md) — arquitetura atual e alvo, decisões e trade-offs.
+- [`docs/api.md`](docs/api.md) — contrato HTTP, limites do mock e exemplos.
+- [`docs/openapi.json`](docs/openapi.json) e [`docs/collection/`](docs/collection/) — artefatos de `npm run docs:export` para `development`.
+- [`docs/modelagem-banco.md`](docs/modelagem-banco.md) — modelo ER; esquema em [`migrations/001_initial_schema.sql`](migrations/001_initial_schema.sql).
 
 ## Licença
 

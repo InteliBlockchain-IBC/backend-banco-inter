@@ -24,14 +24,14 @@ const submissionBody = {
 
 export async function registerTransactionRequestRoutes(
   app: FastifyInstance,
-  { store }: { store: MockStore },
+  { store, enableIntents }: { store: MockStore; enableIntents: boolean },
 ): Promise<void> {
   app.get<{ Params: { id: string } }>(
     "/api/transaction-requests/:id",
     {
       schema: {
         description:
-          "Estado de uma intenção. O frontend pode consultar até ver confirmed ou failed (definidos pelo listener).",
+          "Estado de uma intenção fictícia. Nesta versão ela não chega a confirmed/failed porque não há listener.",
         operationId: "getTransactionRequest",
         params: requestIdParams,
         response: {
@@ -45,6 +45,7 @@ export async function registerTransactionRequestRoutes(
     async (request, reply) =>
       sendData(reply, store.getTransactionRequest(request.params.id)),
   );
+  if (!enableIntents) return;
 
   app.post<{
     Body: { txHash: string };
@@ -56,7 +57,7 @@ export async function registerTransactionRequestRoutes(
       schema: {
         body: submissionBody,
         description:
-          "Informa o hash da transação assinada. A intenção passa de pending para submitted. Só a carteira solicitante pode informar, uma única vez e antes de expiresAt.",
+          "Registra um hash autodeclarado para uma intenção pending. X-Wallet-Address é comparado à carteira também autodeclarada na criação; não prova assinatura nem transmissão.",
         headers: walletHeaderSchema,
         operationId: "submitTransaction",
         params: requestIdParams,
