@@ -259,7 +259,10 @@ export async function buildApp(
         version: API_VERSION,
       },
       openapi: "3.0.3",
-      servers: [{ description: "Local", url: "http://127.0.0.1:3000" }],
+      // Relativo: o Swagger chama a mesma origem em que /docs foi aberto
+      // (localhost, 127.0.0.1 ou a URL publicada). Uma URL fixa vira outra
+      // origem e o navegador bloqueia a chamada.
+      servers: [{ description: "Esta API", url: "/" }],
       tags:
         nodeEnv === "production"
           ? tags

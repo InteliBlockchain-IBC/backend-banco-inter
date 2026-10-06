@@ -3358,8 +3358,8 @@
   },
   "servers": [
     {
-      "description": "Local",
-      "url": "http://127.0.0.1:3000"
+      "description": "Esta API",
+      "url": "/"
     }
   ],
   "tags": [
