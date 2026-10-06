@@ -6,6 +6,7 @@ import Fastify, {
   type FastifyReply,
   type FastifyRequest,
 } from "fastify";
+import { PgStore } from "./db/pg-store.js";
 import { MockStore } from "./mock/store.js";
 import {
   ApiProblem,
@@ -21,8 +22,9 @@ import { registerSimulatedOfferRoutes } from "./routes/mock-offers.js";
 import { registerOperationRoutes } from "./routes/operations.js";
 import { registerTransactionRequestRoutes } from "./routes/transaction-requests.js";
 import { sharedSchemas } from "./schemas.js";
+import type { DataStore } from "./store.js";
 
-export const API_VERSION = "0.3.0";
+export const API_VERSION = "0.4.0";
 
 export type BuildOptions = {
   logger?: boolean;
@@ -31,6 +33,10 @@ export type BuildOptions = {
   now?: () => Date;
   /** Gerador de ids das intenções; o export de docs usa um determinístico. */
   newId?: () => string;
+  /** Com URL, as rotas leem e gravam no PostgreSQL; sem, usam a memória. */
+  databaseUrl?: string;
+  /** Store pronto (testes); tem precedência sobre `databaseUrl`. */
+  store?: DataStore;
 };
 
 const securityHeaders = {
@@ -117,16 +123,16 @@ function sendProblem(
 const tags = [
   {
     description:
-      "Ofertas fictícias da instância e, em development/test, intenções sem autenticação.",
+      "Ofertas da projeção (seed sintético e simulação) e, em development/test, intenções sem autenticação.",
     name: "ofertas",
   },
   {
     description:
-      "Intenção fictícia pending/submitted; não há listener para confirmar ou reprovar.",
+      "Intenção pending/submitted persistida; não há listener para confirmar ou reprovar.",
     name: "intenções",
   },
   {
-    description: "Comprovantes fictícios de liquidações simuladas.",
+    description: "Comprovantes de liquidações simuladas.",
     name: "operações",
   },
   {
@@ -145,7 +151,14 @@ export async function buildApp(
   options: BuildOptions = {},
 ): Promise<FastifyInstance> {
   const now = options.now ?? (() => new Date());
-  const store = new MockStore(now, options.newId);
+  const store: DataStore =
+    options.store ??
+    (options.databaseUrl === undefined
+      ? new MockStore(now, options.newId)
+      : PgStore.fromUrl(options.databaseUrl, {
+          now,
+          ...(options.newId === undefined ? {} : { newId: options.newId }),
+        }));
   const nodeEnv = options.nodeEnv ?? "production";
   const logStackTrace = nodeEnv === "development";
   const app = Fastify({
@@ -188,6 +201,10 @@ export async function buildApp(
             },
           },
     requestTimeout: 15_000,
+  });
+
+  app.addHook("onClose", async () => {
+    await store.close();
   });
 
   app.addHook("onSend", async (_request, reply) => {
@@ -236,7 +253,7 @@ export async function buildApp(
     openapi: {
       info: {
         description:
-          "API da PoC de crédito interfinanceiro overnight. Respostas /api/* de sucesso são fictícias (x-data-source: mock); erros usam Problem Details. Somente development/test expõem comandos simulados /api/mock e intenções de assinatura, sem autenticação de carteira. Nenhuma rota assina ou envia transações. Guia em docs/api.md.",
+          "API da PoC de crédito interfinanceiro overnight. Com DATABASE_URL, /api/* lê e grava no PostgreSQL (x-data-source: postgres); sem ela, em development/test, usa dados em memória (x-data-source: mock). Os dados do seed e da simulação são sintéticos: hashes e endereços não existem na Sepolia. Erros usam Problem Details. Somente development/test expõem comandos simulados /api/mock e intenções de assinatura, sem autenticação de carteira. Nenhuma rota assina ou envia transações. Guia em docs/api.md.",
         license: { name: "MIT" },
         title: "API do Backend Banco Inter",
         version: API_VERSION,
@@ -250,7 +267,7 @@ export async function buildApp(
               ...tags,
               {
                 description:
-                  "Transições DvP fictícias, sem autenticação ou transferência.",
+                  "Transições DvP sintéticas gravadas na projeção, sem autenticação ou transferência.",
                 name: "simulação",
               },
             ],
@@ -261,7 +278,7 @@ export async function buildApp(
     },
   });
   await app.register(swaggerUi, { routePrefix: "/docs" });
-  await app.register(registerHealthRoutes);
+  await app.register(registerHealthRoutes, { store });
   await app.register(registerChainRoutes, { store });
   await app.register(registerOfferRoutes, {
     store,

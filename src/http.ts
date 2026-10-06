@@ -1,21 +1,33 @@
 import type { FastifyReply } from "fastify";
-import type { Paged } from "./mock/store.js";
+import type { DataSource, Paged } from "./store.js";
 
-/** Toda resposta 2xx de /api/* é fictícia nesta versão e diz isso no cabeçalho e no corpo. */
-export function sendData<T>(reply: FastifyReply, data: T, status = 200) {
+/**
+ * Toda resposta 2xx de /api/* informa a origem no cabeçalho e no corpo:
+ * `mock` (memória da instância) ou `postgres` (persistido no banco).
+ */
+export function sendData<T>(
+  reply: FastifyReply,
+  source: DataSource,
+  data: T,
+  status = 200,
+) {
   return reply
     .code(status)
-    .header("x-data-source", "mock")
-    .send({ data, meta: { source: "mock" } });
+    .header("x-data-source", source)
+    .send({ data, meta: { source } });
 }
 
-export function sendList<T>(reply: FastifyReply, page: Paged<T>) {
-  return reply.header("x-data-source", "mock").send({
+export function sendList<T>(
+  reply: FastifyReply,
+  source: DataSource,
+  page: Paged<T>,
+) {
+  return reply.header("x-data-source", source).send({
     data: page.items,
     meta: {
       limit: page.limit,
       offset: page.offset,
-      source: "mock",
+      source,
       total: page.total,
     },
   });

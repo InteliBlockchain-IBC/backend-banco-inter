@@ -165,6 +165,8 @@ test("the production logger keeps secrets out and separates 4xx from 5xx", async
       HOST: "127.0.0.1",
       NODE_ENV: "production",
       PORT: String(port),
+      // O pool conecta sob demanda; estas rotas não chegam ao banco.
+      DATABASE_URL: "postgresql://ninguem:senha-do-banco@127.0.0.1:1/nada",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -188,6 +190,8 @@ test("the production logger keeps secrets out and separates 4xx from 5xx", async
     }
 
     assert.doesNotMatch(output, /valor-sensivel/);
+    assert.doesNotMatch(output, /senha-do-banco/);
+    assert.match(output, /"dataSource":"postgres"/);
     assert.match(output, /"url":"\/health"/);
     assert.match(output, /requisição rejeitada antes do handler/);
     assert.match(output, /"level":40/);

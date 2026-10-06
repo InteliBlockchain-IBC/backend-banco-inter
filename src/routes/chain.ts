@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { sendData } from "../http.js";
-import type { MockStore } from "../mock/store.js";
+import type { DataStore } from "../store.js";
 import { dataEnvelope, errorResponses } from "../schemas.js";
 
 export async function registerChainRoutes(
   app: FastifyInstance,
-  { store }: { store: MockStore },
+  { store }: { store: DataStore },
 ): Promise<void> {
   app.get(
     "/api/deployment",
@@ -22,7 +22,8 @@ export async function registerChainRoutes(
         tags: ["rede"],
       },
     },
-    async (_request, reply) => sendData(reply, store.deployment()),
+    async (_request, reply) =>
+      sendData(reply, store.source, await store.deployment()),
   );
 
   app.get(
@@ -40,6 +41,7 @@ export async function registerChainRoutes(
         tags: ["rede"],
       },
     },
-    async (_request, reply) => sendData(reply, store.syncStatus()),
+    async (_request, reply) =>
+      sendData(reply, store.source, await store.syncStatus()),
   );
 }

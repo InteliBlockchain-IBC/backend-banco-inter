@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { sendData } from "../http.js";
-import type { MockStore } from "../mock/store.js";
+import type { DataStore } from "../store.js";
 import {
   dataEnvelope,
   errorResponses,
@@ -24,7 +24,7 @@ const submissionBody = {
 
 export async function registerTransactionRequestRoutes(
   app: FastifyInstance,
-  { store, enableIntents }: { store: MockStore; enableIntents: boolean },
+  { store, enableIntents }: { store: DataStore; enableIntents: boolean },
 ): Promise<void> {
   app.get<{ Params: { id: string } }>(
     "/api/transaction-requests/:id",
@@ -43,7 +43,11 @@ export async function registerTransactionRequestRoutes(
       },
     },
     async (request, reply) =>
-      sendData(reply, store.getTransactionRequest(request.params.id)),
+      sendData(
+        reply,
+        store.source,
+        await store.getTransactionRequest(request.params.id),
+      ),
   );
   if (!enableIntents) return;
 
@@ -72,7 +76,8 @@ export async function registerTransactionRequestRoutes(
     async (request, reply) =>
       sendData(
         reply,
-        store.submitTransaction(
+        store.source,
+        await store.submitTransaction(
           request.params.id,
           request.headers["x-wallet-address"],
           request.body.txHash,

@@ -1,6 +1,6 @@
-# API — referência HTTP (v0.3.0, dados fictícios)
+# API — referência HTTP (v0.4.0)
 
-Contrato da API para a PoC. Leituras e comandos de simulação usam fixtures em memória; **não há conexão do servidor com PostgreSQL, RPC ou listener**. O payload de integração real poderá mudar após autenticação e validação com o frontend/Web3. `production` registra apenas GETs; a coleção e o OpenAPI exportados representam `development`.
+Contrato da API para a PoC. Com `DATABASE_URL`, leituras, intenções e simulações usam o **PostgreSQL** (`X-Data-Source: postgres`); sem ela, em `development`/`test`, usam fixtures em memória (`X-Data-Source: mock`). O payload é o mesmo nas duas fontes. Ainda **não há RPC nem listener**: os dados do banco vêm do seed de demonstração e da simulação, com hashes e endereços sintéticos. O payload de integração real poderá mudar após autenticação e validação com o frontend/Web3. `production` registra apenas GETs; a coleção e o OpenAPI exportados representam `development`.
 
 | Artefato | Para quê |
 | --- | --- |
@@ -31,12 +31,12 @@ Os arquivos são gerados pela própria API (`npm run docs:export` no ambiente `d
 
 ## 1. Como a API funciona
 
-A API não assina nem envia transações. Os GETs leem dados fictícios. Dois fluxos distintos só existem em `development`/`test`:
+A API não assina nem envia transações. Os GETs leem a projeção (seed sintético mais o que foi simulado). Dois fluxos distintos só existem em `development`/`test`:
 
-- **`POST /api/mock/offers...`** atualiza ofertas, histórico, limites e operações **somente nesta instância em memória**, com hashes e blocos sintéticos. `lenderWallet` é autodeclarado; estas rotas não autentificam carteira nem substituem uma transação.
+- **`POST /api/mock/offers...`** grava ofertas, eventos, liquidação, débito de limite, histórico e cursor **numa única transação** na fonte de dados ativa, com hashes e blocos sintéticos. No PostgreSQL isso persiste entre reinícios. `lenderWallet` é autodeclarado; estas rotas não autentificam carteira nem substituem uma transação.
 - **`POST /api/offers...`** devolve uma intenção `pending` e `contractCall`; `POST .../submission` só registra o hash informado pelo chamador. Essas ações **não** criam, liquidam ou alteram ofertas. Sem listener, intenções `submitted` não chegam a `confirmed` e as listas não são atualizadas.
 
-O fluxo de carteira, contrato, listener e PostgreSQL é **arquitetura alvo**, não comportamento implementado nesta versão. Uma integração futura exige autorização de carteira/instituição e verificação do ABI/endereço implantado antes de construir qualquer chamada real. Não use os endereços/hash das fixtures para enviar uma transação. Na execução on-chain, o ofertante precisará ter BRLt e allowance suficientes; o backend mock não checa saldo nem aprovação.
+O fluxo de carteira, contrato e listener é **arquitetura alvo**, não comportamento implementado nesta versão; a persistência em PostgreSQL já está implementada. Uma integração futura exige autorização de carteira/instituição e verificação do ABI/endereço implantado antes de construir qualquer chamada real. Não use os endereços/hash das fixtures para enviar uma transação. Na execução on-chain, o ofertante precisará ter BRLt e allowance suficientes; o backend não checa saldo nem aprovação.
 
 ---
 
@@ -44,11 +44,13 @@ O fluxo de carteira, contrato, listener e PostgreSQL é **arquitetura alvo**, n�
 
 ### Envelope
 
-Toda resposta 2xx de `/api/*` tem o cabeçalho `X-Data-Source: mock` e este formato:
+Toda resposta 2xx de `/api/*` tem o cabeçalho `X-Data-Source` e este formato:
 
 ```json
-{ "data": { }, "meta": { "source": "mock" } }
+{ "data": { }, "meta": { "source": "postgres" } }
 ```
+
+`source` é `postgres` (persistido no banco) ou `mock` (memória da instância, só em `development`/`test` sem `DATABASE_URL`). Os exemplos abaixo mostram `mock`; o resto do corpo é idêntico.
 
 Listas paginadas (`/api/offers`, `/api/operations`) trazem também `total`, `limit` e `offset` em `meta`. As outras listas vêm inteiras.
 
@@ -107,7 +109,8 @@ Use `type` (ou o final dele) para decidir o que mostrar; `detail` é texto para 
 | 404 | `not-found` | Recurso/rota inexistente, inclusive qualquer POST em `production` |
 | 409 | `invalid-offer-status`, `offer-expired`, `request-in-progress`, `invalid-request-status`, `request-expired`, `duplicate-transaction` | Estado terminal, vencimento ou duplicidade |
 | 422 | `not-registered-institution`, `invalid-counterparty`, `insufficient-limit` | Contraparte não cadastrada ou limite fictício insuficiente |
-| 503 | `mock-store-full`, `request-store-full` | Máximo de 100 ofertas (incluindo fixtures) ou 100 intenções por instância |
+| 503 | `database-unavailable`, `deployment-not-configured` | PostgreSQL fora do ar (`/ready`) ou banco sem deployment: rode `npm run db:setup` |
+| 503 | `mock-store-full`, `request-store-full` | **Só memória:** máximo de 100 ofertas (incluindo fixtures) ou 100 intenções por instância |
 | 500 | `internal-error` | Falha inesperada sem detalhes internos |
 
 As validações de intenção evitam erros evidentes, mas não provam autorização ou sucesso de uma transação. Na simulação, um conflito ou erro não altera eventos, limite ou estado.
@@ -119,7 +122,7 @@ As validações de intenção evitam erros evidentes, mas não provam autorizaç
 | Método | Caminho | Descrição | Sucesso |
 | --- | --- | --- | --- |
 | GET | `/api/deployment` | Endereços sintéticos das fixtures | 200 `Deployment` |
-| GET | `/api/sync-status` | Cursor fictício, sem listener | 200 `SyncStatus` |
+| GET | `/api/sync-status` | Cursor da projeção, avançado pela simulação (sem listener) | 200 `SyncStatus` |
 | GET | `/api/offers` | Listar ofertas | 200 `Offer[]` paginado |
 | POST | `/api/offers` | Intenção de criar oferta | 202 `TransactionRequest` |
 | GET | `/api/offers/{id}` | Detalhar oferta | 200 `Offer` |
@@ -375,9 +378,9 @@ Erros: 400, 403 `not-request-owner`, 404, 409 (`invalid-request-status`, `reques
 }
 ```
 
-Retorna 201 com `{ data: { offer: Offer, operation: null }, meta: { source: "mock" } }`. Ofertante e tomador são apenas endereços fictícios escolhidos no body, diferentes e cadastrados nas fixtures. `amountCents` é decimal canônico > 0 e ≤ `2^256−1`; taxa, prazo e validade são inteiros positivos seguros em JavaScript. Datas além do ano 9999 são rejeitadas por limitação de representação do mock. Criação não debita limite.
+Retorna 201 com `{ data: { offer: Offer, operation: null }, meta: { source: "mock" } }`. Ofertante e tomador são apenas endereços fictícios escolhidos no body, diferentes e cadastrados nas fixtures. `amountCents` é decimal canônico > 0 e ≤ `2^256−1`; taxa, prazo e validade são inteiros positivos seguros em JavaScript. Datas além do ano 9999 são rejeitadas por limitação de representação do simulador. Criação não debita limite.
 
-`POST /api/mock/offers/{id}/accept`, `/reject` e `/cancel` não recebem body nem cabeçalho de identidade. Só uma oferta `offered` e não vencida aceita uma transição. O aceite revalida registro e limite do tomador, debita-o e devolve `{ offer: Offer, operation: Operation }` com `OfferAccepted` e `OfferSettled` no **mesmo hash sintético**; rejeição/cancelamento devolvem `operation: null` e não debitam limite. `GET /api/offers/{id}`, `/events`, `/api/operations/{txHash}` e `/api/credit-limits/{wallet}/history` mostram o novo estado na mesma instância. `expiresAt <= now` dá 409; ler uma oferta vencida não inventa evento `OfferExpired`. Repetir ação terminal também dá 409.
+`POST /api/mock/offers/{id}/accept`, `/reject` e `/cancel` não recebem body nem cabeçalho de identidade. Só uma oferta `offered` e não vencida aceita uma transição. O aceite revalida registro e limite do tomador, debita-o e devolve `{ offer: Offer, operation: Operation }` com `OfferAccepted` e `OfferSettled` no **mesmo hash sintético**; rejeição/cancelamento devolvem `operation: null` e não debitam limite. `GET /api/offers/{id}`, `/events`, `/api/operations/{txHash}` e `/api/credit-limits/{wallet}/history` mostram o novo estado (no PostgreSQL, para qualquer instância e depois de reiniciar). `expiresAt <= now` dá 409; ler uma oferta vencida não inventa evento `OfferExpired`. Repetir ação terminal também dá 409.
 
 O teto por instância é 100 ofertas incluindo nove fixtures; quando cheio, retorna 503 sem alterar o estado. Não há persistência, autenticação, rate limiting ou transferência real. Cada reinício restaura as fixtures. O OpenAPI servido em `production` omite os quatro POSTs.
 
@@ -507,13 +510,13 @@ stateDiagram-v2
     submitted --> failed: transação reverteu
 ```
 
-Na versão mock só existem `pending`, `submitted` e `expired`.
+Sem listener, só existem `pending`, `submitted` e `expired`.
 
 ---
 
-## 7. Massa de dados mock
+## 7. Massa de dados de demonstração
 
-Os horários são relativos ao momento em que a API sobe, então sempre há ofertas abertas. Nomes e endereços são fictícios.
+A mesma massa serve as duas fontes: em memória ela é criada quando a API sobe; no PostgreSQL, gravada pelo seed (`npm run db:setup`, serviço `setup` do compose). Os horários são relativos a esse momento, então logo depois há ofertas abertas; para renová-los no banco, `docker compose run --rm -e SEED_DEMO=reset setup` ou `npm run db:seed -- --reset`. Nomes e endereços são fictícios.
 
 | Banco | Carteira | Limite disponível | Situação |
 | --- | --- | --- | --- |
@@ -534,7 +537,7 @@ Os horários são relativos ao momento em que a API sobe, então sempre há ofer
 | 8 | Alfa → Beta | R$ 40 mi | 105% | `offered` (vence ~50 min após subir) |
 | 9 | Gama → Alfa | R$ 15 mi, 2 dias | 103,5% | `offered` (vence ~55 min após subir) |
 
-O id da oferta N na API é `a0000000-0000-4000-8000-00000000000N`. Comandos `/api/mock` adicionam ofertas além das nove fixtures até o teto de 100; intenções não alteram a lista. Tudo se perde ao reiniciar.
+O id da oferta N na API é `a0000000-0000-4000-8000-00000000000N`. Comandos `/api/mock` adicionam ofertas além das nove fixtures; intenções não alteram a lista. Em memória há teto de 100 ofertas e tudo se perde ao reiniciar; no PostgreSQL não há teto e os dados persistem.
 
 ---
 
@@ -543,7 +546,7 @@ O id da oferta N na API é `a0000000-0000-4000-8000-00000000000N`. Comandos `/ap
 1. Suba a API em modo local explícito: `npm run build && NODE_ENV=development npm run start` (padrão `http://127.0.0.1:3000`). Sem `NODE_ENV`, o servidor sobe em `production` e só oferece GETs.
 2. No Postman: **Import** → `docs/collection/backend-banco-inter.postman_collection.json`. Bruno e Insomnia também importam coleções Postman v2.1.
 3. Variáveis: `baseUrl`, `lenderWallet` (Alfa), `borrowerWallet` (Beta), `openOfferId`, `cancelOfferId`, `settledOfferId`, `settledTxHash`, `requestId` e `mockOfferId`.
-4. Rode **Simulação DvP → Criar oferta fictícia** para preencher `mockOfferId`, depois **Aceitar oferta fictícia**; consultar oferta, eventos, limites e operação reflete o novo estado até reiniciar. Rode **Ofertas → Criar oferta (intenção)** para preencher `requestId` antes de **Intenções**. Esses comandos só existem no ambiente `development`/`test`.
+4. Rode **Simulação DvP → Criar oferta fictícia** para preencher `mockOfferId`, depois **Aceitar oferta fictícia**; consultar oferta, eventos, limites e operação reflete o novo estado (persistido, com PostgreSQL). Rode **Ofertas → Criar oferta (intenção)** para preencher `requestId` antes de **Intenções**. Esses comandos só existem no ambiente `development`/`test`.
 
 Cada requisição traz exemplos salvos (sucesso e erros comuns), então dá para ler as respostas sem subir a API.
 
@@ -557,4 +560,4 @@ npm run docs:export
 
 ## 9. Limites e integração futura
 
-O schema e o runner PostgreSQL estão disponíveis, mas as rotas ainda não persistem dados. Não existe fonte confiável de identidade, confirmação on-chain, prova de reserva, listener, política implementada de reorg ou isolamento institucional na API. Antes de abandonar os mocks, frontend e backend precisam acordar contrato de autenticação, rastreabilidade, versão do ABI, medição de latência e semântica de falha. A mudança para uma API financeira não preserva necessariamente os códigos ou campos atuais.
+As rotas persistem no PostgreSQL, mas o conteúdo ainda é sintético: não existe fonte confiável de identidade, confirmação on-chain, prova de reserva, listener, política implementada de reorg ou isolamento institucional na API. Antes de tratar os dados como reais, frontend e backend precisam acordar contrato de autenticação, rastreabilidade, versão do ABI, medição de latência e semântica de falha. A mudança para uma API financeira não preserva necessariamente os códigos ou campos atuais.

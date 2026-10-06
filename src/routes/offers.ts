@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { type OfferStatus, offerStatuses } from "../domain.js";
 import { sendData, sendList } from "../http.js";
-import type { MockStore } from "../mock/store.js";
+import type { DataStore } from "../store.js";
 import { ApiProblem } from "../problem.js";
 import {
   dataEnvelope,
@@ -126,7 +126,7 @@ const actions = [
 
 export async function registerOfferRoutes(
   app: FastifyInstance,
-  { store, enableIntents }: { store: MockStore; enableIntents: boolean },
+  { store, enableIntents }: { store: DataStore; enableIntents: boolean },
 ): Promise<void> {
   app.get<{ Querystring: ListQuery }>(
     "/api/offers",
@@ -145,7 +145,8 @@ export async function registerOfferRoutes(
       const { limit, offset, role, status, wallet } = request.query;
       return sendList(
         reply,
-        store.listOffers(
+        store.source,
+        await store.listOffers(
           {
             role,
             ...(status === undefined ? {} : { status }),
@@ -173,7 +174,7 @@ export async function registerOfferRoutes(
       },
     },
     async (request, reply) =>
-      sendData(reply, store.getOffer(request.params.id)),
+      sendData(reply, store.source, await store.getOffer(request.params.id)),
   );
 
   app.get<{ Params: { id: string } }>(
@@ -193,7 +194,7 @@ export async function registerOfferRoutes(
       },
     },
     async (request, reply) =>
-      sendData(reply, store.offerEvents(request.params.id)),
+      sendData(reply, store.source, await store.offerEvents(request.params.id)),
   );
   if (!enableIntents) return;
 
@@ -235,7 +236,8 @@ export async function registerOfferRoutes(
     async (request, reply) =>
       sendData(
         reply,
-        store.createOfferIntent(
+        store.source,
+        await store.createOfferIntent(
           request.headers["x-wallet-address"],
           request.body,
         ),
@@ -263,7 +265,8 @@ export async function registerOfferRoutes(
       async (request, reply) =>
         sendData(
           reply,
-          store.offerActionIntent(
+          store.source,
+          await store.offerActionIntent(
             action,
             request.headers["x-wallet-address"],
             request.params.id,

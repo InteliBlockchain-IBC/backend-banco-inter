@@ -14,11 +14,11 @@ O objetivo da PoC é reduzir essa janela: o contrato inteligente valida o limite
 |---|---|---|---|
 | Runtime | Node.js 24 LTS, TypeScript estrito | API e testes executáveis (`package.json`, `.nvmrc`) | Java/Spring traz ecossistema corporativo maior, mas exige outra toolchain e mais configuração para esta PoC; Python/FastAPI facilita prototipagem, mas fragmentaria os tipos compartilhados com o cliente JS. Nenhum benchmark comparativo foi executado. |
 | HTTP | Fastify 5 com schemas e OpenAPI | Implementado em `src/app.ts` e `src/routes/` | Express tem ecossistema amplo, porém validação e OpenAPI precisariam de composição adicional nesta base. |
-| Persistência | PostgreSQL 16 no CI; `pg` e SQL versionado | Schema, runner e testes reais (`migrations/`, `src/db/migrate.ts`); **servidor ainda não conecta** | SQLite simplificaria instalação local, mas não exercitaria as mesmas constraints, locks e transações previstas para a projeção compartilhada. Um ORM acrescentaria mapeamentos a revisar para `numeric(78,0)` e chaves compostas; SQL direto mantém esses invariantes explícitos. |
+| Persistência | PostgreSQL 16 no CI; `pg` e SQL versionado | Schema, runner, seed e `PgStore` (`src/db/`): **rotas leem e gravam no banco** com `DATABASE_URL`; testes de paridade, concorrência e prontidão em PostgreSQL real | SQLite simplificaria instalação local, mas não exercitaria as mesmas constraints, locks e transações previstas para a projeção compartilhada. Um ORM acrescentaria mapeamentos a revisar para `numeric(78,0)` e chaves compostas; SQL direto mantém esses invariantes explícitos. |
 | Rede | Sepolia (testnet) | Apenas endereços e eventos sintéticos em fixtures | Rede permissionada mudaria as premissas de finalização e infraestrutura; está fora da PoC. |
 | Leitura on-chain | `viem` candidato | **Não instalado**; listener/RPC/ABI pendentes | `ethers` é opção viável; escolher após validar ABI, suporte a logs e requisitos de replay. |
 
-Sem ORM e sem serviço de fila nesta etapa. `npm run db:migrate` só aplica o esquema ao `DATABASE_URL` fornecido; API, provas on-chain, autenticação e replay não decorrem da migration.
+Sem ORM e sem serviço de fila nesta etapa. `npm run db:setup` aplica as migrations e o seed ao `DATABASE_URL`; provas on-chain, autenticação e replay continuam fora do escopo da migration. As rotas dependem da interface `DataStore` (`src/store.ts`), implementada por `PgStore` (SQL parametrizado, transações, advisory lock nas escritas que leem-e-depois-gravam) e por `MockStore` (memória, para testes HTTP rápidos e desenvolvimento sem banco). Os dois montam o JSON pelo mesmo módulo (`src/views.ts`) e aplicam as mesmas regras de simulação (`src/mock/simulate.ts`).
 
 ## Diagrama
 
@@ -29,7 +29,7 @@ Fluxo **alvo**, não execução já disponível:
 1. O cliente prepara/assina uma transação em sua própria carteira, sem custódia do backend. Uma API futura autenticada pode persistir intenção e expor argumentos, mas os POSTs de intenção atuais são apenas desenvolvimento/teste e usam identidade autodeclarada.
 2. O contrato DvP valida registro, limite e saldo/allowance do ativo de liquidação; aceite e liquidação ocorrem na mesma transação.
 3. Um listener ainda a construir lê logs confirmados na Sepolia, detecta divergência de blocos, reprocessa projeções e avança o cursor em uma transação de banco.
-4. O cliente consulta a API para ver a projeção; hoje as leituras são fixtures e a simulação `/api/mock` muda só memória local.
+4. O cliente consulta a API para ver a projeção; hoje a projeção no PostgreSQL é alimentada pelo seed e pela simulação `/api/mock`, não pela chain.
 
 ## Componentes
 
@@ -43,15 +43,15 @@ O operador assina transações na carteira; o backend não guarda chaves nem tra
 
 ### API (Fastify, implementada)
 
-Consultas e histórico em memória; comandos DvP fictícios sob `/api/mock` e intenções de assinatura sob `/api` só em `development`/`test`. Em `production`, nenhum POST é registrado. O cabeçalho de carteira é autodeclarado e não concede autorização.
+Consultas e histórico no PostgreSQL (ou em memória, sem `DATABASE_URL` em development/test); comandos DvP sintéticos sob `/api/mock` e intenções de assinatura sob `/api` só em `development`/`test`. Em `production`, nenhum POST é registrado. O cabeçalho de carteira é autodeclarado e não concede autorização.
 
 ### Listener (não implementado)
 
 Deverá ler logs por intervalo de blocos, persistir eventos e projeções com cursor e tratar reorg. `GET /api/sync-status` expõe apenas um cursor sintético por enquanto.
 
-### PostgreSQL (esquema disponível, integração pendente)
+### PostgreSQL (integrado à API)
 
-As nove tabelas de domínio e `schema_migrations` existem depois da execução explícita do runner; nenhuma rota lê ou escreve nelas. O banco será um espelho da chain, sujeito a replay e correção de reorg.
+As nove tabelas de domínio e `schema_migrations` são criadas pelo runner (`setup` no compose). A API lê todas e grava ofertas, eventos, liquidações, limites, histórico, cursor e intenções. `/ready` executa `SELECT 1` e responde 503 se o banco cair; em `production` o servidor não sobe sem `DATABASE_URL`. Quando o listener existir, ele passará a ser o escritor da projeção, sujeito a replay e correção de reorg.
 
 ### RPC provider
 
@@ -85,7 +85,7 @@ Um reorg substitui logs que podem ter o mesmo número de bloco e outro hash. A i
 
 ## Riscos conhecidos
 
-**Dados fictícios confundidos com liquidação.** Sucessos HTTP marcam `mock`; hashes e links de explorer são sintéticos. Erros não carregam o marcador porque usam Problem Details.
+**Dados sintéticos confundidos com liquidação.** Sucessos HTTP marcam a origem (`postgres` ou `mock`), mas mesmo persistidos os hashes e links de explorer do seed e da simulação são sintéticos. Erros não carregam o marcador porque usam Problem Details.
 
 **Identidade não verificada.** Cabeçalho de carteira e endereços no body são autodeclarados. POSTs não são registrados em `production`; não exponha `development` como serviço financeiro.
 

@@ -1,6 +1,6 @@
 # Modelo de dados — contrato DvP
 
-Modelo para a PoC em Sepolia, baseado no **Guia de modelagem para o backend — contrato DvP** e na interface/implementação da branch [`feat/escopo-reduzido-dvp`](https://github.com/anacampos-crypto/projeto-inter-web3/tree/b68cf40732519c8b0eae2d300644676f75a95016). [`migrations/001_initial_schema.sql`](../migrations/001_initial_schema.sql) define o esquema e `npm run db:migrate` o aplica ao `DATABASE_URL` informado. A API e o listener **não** usam PostgreSQL nesta versão; todas as leituras e simulações HTTP ainda são em memória.
+Modelo para a PoC em Sepolia, baseado no **Guia de modelagem para o backend — contrato DvP** e na interface/implementação da branch [`feat/escopo-reduzido-dvp`](https://github.com/anacampos-crypto/projeto-inter-web3/tree/b68cf40732519c8b0eae2d300644676f75a95016). [`migrations/001_initial_schema.sql`](../migrations/001_initial_schema.sql) define o esquema; `npm run db:setup` (ou o serviço `setup` do compose) aplica as migrations e grava a massa de demonstração (`src/db/seed.ts`). A API lê e grava nestas tabelas por `src/db/pg-store.ts`; o listener ainda não existe.
 
 ```mermaid
 erDiagram
@@ -47,6 +47,6 @@ erDiagram
 - Antes de criar a oferta, listar **outras** carteiras cadastradas com `available_limit_cents >= amount_cents`; o contrato revalida esse limite na criação e no aceite.
 - Listagens de ofertas liquidadas devem retornar a oferta apenas para ofertante e tomador **após autenticar a carteira**. A Sepolia continua pública; essa regra limita somente a API. A autenticação ainda não existe no backend atual.
 - O comprovante para registro na Selic pode ser gerado de `offers` + `settlements` + `chain_events` (partes, valor, taxa, timestamp e hash). Os campos finais exigidos pelo Inter ainda não foram confirmados; nenhuma tabela de comprovantes é necessária nesta migration.
-- No fluxo alvo, a carteira assina; uma API autenticada poderá registrar a intenção e receber o hash. Eventos sem intenção correspondente ainda precisam ser indexados; a projeção de `settlements` deverá alimentar `/api/operations` e `/api/operations/:txHash`. Hoje essas rotas leem fixtures e transições `/api/mock`.
+- No fluxo alvo, a carteira assina; uma API autenticada poderá registrar a intenção e receber o hash. Eventos sem intenção correspondente ainda precisam ser indexados; a projeção de `settlements` deverá alimentar `/api/operations` e `/api/operations/:txHash`. Hoje essas rotas já leem `settlements` no PostgreSQL, alimentado pelo seed e pelas transições `/api/mock`.
 
-**Limite da entrega:** o runner executa e verifica o esquema em PostgreSQL isolado, mas não conecta a API ao banco nem implementa listener, indexação, autenticação, reconciliação ou rollback de reorg. A migration guarda somente o hash do cursor, sem janela de hashes por bloco necessária à correção de reorg.
+**Limite da entrega:** a API persiste e consulta a projeção, mas não há listener, indexação on-chain, autenticação, reconciliação ou rollback de reorg; o conteúdo vem do seed e da simulação. A migration guarda somente o hash do cursor, sem janela de hashes por bloco necessária à correção de reorg.

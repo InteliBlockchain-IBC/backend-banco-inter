@@ -1,12 +1,9 @@
 import { randomUUID } from "node:crypto";
 import {
   type Address,
-  type ChainEventRecord,
-  type CreditLimitChangeRecord,
   effectiveStatus,
   type Hash,
   type OfferRecord,
-  type OfferStatus,
   type SettlementRecord,
   type TransactionAction,
   type TransactionRequestRecord,
@@ -14,6 +11,28 @@ import {
   UINT256_MAX,
 } from "../domain.js";
 import { problems } from "../problem.js";
+import {
+  type CreditLimitFilter,
+  type DataStore,
+  type OfferFilter,
+  type OfferIntentInput,
+  type Page,
+  type Paged,
+  REQUEST_TTL_MS,
+} from "../store.js";
+import {
+  creditLimitChangeView,
+  creditLimitView,
+  deploymentView,
+  eventView,
+  liveRequestStatus,
+  offerView,
+  operationView,
+  party,
+  requestView,
+  syncStatusView,
+  type ViewContext,
+} from "../views.js";
 import { createFixtures, type Fixtures } from "./fixtures.js";
 import {
   simulateAction,
@@ -21,23 +40,10 @@ import {
   type SimulatedOfferInput,
 } from "./simulate.js";
 
-/** Validade de uma intenção até o frontend informar o hash assinado. */
-export const REQUEST_TTL_MS = 15 * 60_000;
+export { REQUEST_TTL_MS } from "../store.js";
+export { SYNC_STALE_AFTER_SECONDS } from "../views.js";
 export const MAX_MOCK_REQUESTS = 100;
-/** Acima disso sem sincronizar, a API sinaliza o listener como atrasado. */
-export const SYNC_STALE_AFTER_SECONDS = 60;
 
-const EXPLORER = "https://sepolia.etherscan.io";
-
-export type Page = { limit: number; offset: number };
-export type Paged<T> = {
-  items: T[];
-  limit: number;
-  offset: number;
-  total: number;
-};
-
-const iso = (date: Date): string => date.toISOString();
 const lower = (address: string): Address => address.toLowerCase() as Address;
 
 function paginate<T>(items: T[], page: Page): Paged<T> {
@@ -49,16 +55,10 @@ function paginate<T>(items: T[], page: Page): Paged<T> {
   };
 }
 
-const functionNames: Record<TransactionAction, string> = {
-  accept_offer: "acceptOffer",
-  cancel_offer: "cancelOffer",
-  create_offer: "createOffer",
-  reject_offer: "rejectOffer",
-};
-
 /** Estado fictício por instância; intenções não confirmam nada e comandos de
  * demonstração atualizam apenas as projeções em memória. */
-export class MockStore {
+export class MockStore implements DataStore {
+  readonly source = "mock" as const;
   #data: Fixtures;
   readonly #newId: () => string;
   readonly #now: () => Date;
@@ -75,45 +75,18 @@ export class MockStore {
   // -------------------------------------------------------------------
 
   deployment() {
-    const d = this.#data.deployment;
-    return {
-      brlTokenAddress: d.brlTokenAddress,
-      chainId: d.chainId,
-      contractAddress: d.contractAddress,
-      explorerUrl: `${EXPLORER}/address/${d.contractAddress}`,
-      network: "sepolia" as const,
-      positionTokenAddress: d.positionTokenAddress,
-      startBlock: d.startBlock,
-    };
+    return deploymentView(this.#data.deployment);
   }
 
   syncStatus() {
-    const cursor = this.#data.syncCursor;
-    const lagSeconds = Math.max(
-      0,
-      Math.floor(
-        (this.#now().getTime() - cursor.lastSyncedAt.getTime()) / 1000,
-      ),
+    return syncStatusView(
+      this.#data.deployment,
+      this.#data.syncCursor,
+      this.#now(),
     );
-    return {
-      chainId: this.#data.deployment.chainId,
-      contractAddress: this.#data.deployment.contractAddress,
-      lagSeconds,
-      lastProcessedBlock: cursor.lastProcessedBlock,
-      lastProcessedBlockHash: cursor.lastProcessedBlockHash,
-      lastSyncedAt: iso(cursor.lastSyncedAt),
-      stale: lagSeconds > SYNC_STALE_AFTER_SECONDS,
-    };
   }
 
-  listOffers(
-    filter: {
-      status?: OfferStatus;
-      wallet?: string;
-      role?: "lender" | "borrower" | "any";
-    },
-    page: Page,
-  ) {
+  listOffers(filter: OfferFilter, page: Page) {
     const now = this.#now();
     const wallet =
       filter.wallet === undefined ? undefined : lower(filter.wallet);
@@ -182,11 +155,7 @@ export class MockStore {
     return this.#operationView(this.#offer(settlement.offerId), settlement);
   }
 
-  listCreditLimits(filter: {
-    excludeWallet?: string;
-    minAvailableCents?: string;
-    registered?: boolean;
-  }) {
+  listCreditLimits(filter: CreditLimitFilter) {
     const exclude =
       filter.excludeWallet === undefined
         ? undefined
@@ -230,12 +199,7 @@ export class MockStore {
   }
 
   createSimulatedOffer(input: SimulatedOfferInput) {
-    const result = simulateCreate(
-      this.#data,
-      this.#now(),
-      this.#newId(),
-      input,
-    );
+    const result = simulateCreate(this.#data, this.#now(), this.#newId, input);
     this.#data = result.data;
     return { offer: this.#offerView(result.offer), operation: null };
   }
@@ -256,16 +220,7 @@ export class MockStore {
   // Intenções
   // -------------------------------------------------------------------
 
-  createOfferIntent(
-    requesterWallet: string,
-    input: {
-      amountCents: string;
-      borrowerWallet: string;
-      rateCdiBps: number;
-      termDays: number;
-      validitySeconds: number;
-    },
-  ) {
+  createOfferIntent(requesterWallet: string, input: OfferIntentInput) {
     const requester = this.#requireRegistered(requesterWallet);
     const borrowerAddress = lower(input.borrowerWallet);
     if (borrowerAddress === requester.wallet)
@@ -423,13 +378,7 @@ export class MockStore {
   }
 
   #liveStatus(request: TransactionRequestRecord) {
-    if (
-      request.status === "pending" &&
-      request.expiresAt.getTime() <= this.#now().getTime()
-    ) {
-      return "expired" as const;
-    }
-    return request.status;
+    return liveRequestStatus(request, this.#now());
   }
 
   #pushRequest(
@@ -461,6 +410,18 @@ export class MockStore {
     return request;
   }
 
+  async check(): Promise<void> {}
+
+  async close(): Promise<void> {}
+
+  #context(): ViewContext {
+    return {
+      deployment: this.#data.deployment,
+      now: this.#now(),
+      party: (address) => this.#party(address),
+    };
+  }
+
   #party(address: Address) {
     const state = this.#data.wallets.find((item) => item.wallet === address);
     const institution =
@@ -469,147 +430,34 @@ export class MockStore {
         : this.#data.institutions.find(
             (item) => item.id === state.institutionId,
           );
-    return {
-      institution:
-        institution === undefined
-          ? null
-          : { id: institution.id, name: institution.name },
-      wallet: address,
-    };
+    return party(address, institution);
   }
 
   #offerView(offer: OfferRecord) {
-    const settlement = this.#data.settlements.find(
-      (item) => item.offerId === offer.id,
+    return offerView(
+      this.#context(),
+      offer,
+      this.#data.settlements.find((item) => item.offerId === offer.id),
     );
-    return {
-      amountCents: offer.amountCents.toString(),
-      borrower: this.#party(offer.borrower),
-      chainId: this.#data.deployment.chainId,
-      contractAddress: this.#data.deployment.contractAddress,
-      createTxHash: offer.createTxHash,
-      createdAt: iso(offer.createdAt),
-      createdBlock: offer.createdBlock,
-      expiresAt: iso(offer.expiresAt),
-      id: offer.id,
-      lender: this.#party(offer.lender),
-      onchainOfferId: offer.onchainOfferId.toString(),
-      onchainStatusCode: offer.onchainStatus,
-      rateCdiBps: offer.rateCdiBps,
-      settlement:
-        settlement === undefined
-          ? null
-          : {
-              blockNumber: settlement.blockNumber,
-              positionTokenId: settlement.positionTokenId.toString(),
-              settledAt: iso(settlement.settledAt),
-              txHash: settlement.txHash,
-            },
-      status: effectiveStatus(offer, this.#now()),
-      termDays: offer.termDays,
-    };
   }
 
   #operationView(offer: OfferRecord, settlement: SettlementRecord) {
-    return {
-      amountCents: offer.amountCents.toString(),
-      blockHash: settlement.blockHash,
-      blockNumber: settlement.blockNumber,
-      borrower: this.#party(offer.borrower),
-      chainId: this.#data.deployment.chainId,
-      contractAddress: this.#data.deployment.contractAddress,
-      explorerUrl: `${EXPLORER}/tx/${settlement.txHash}`,
-      lender: this.#party(offer.lender),
-      offerId: offer.id,
-      onchainOfferId: offer.onchainOfferId.toString(),
-      positionTokenId: settlement.positionTokenId.toString(),
-      rateCdiBps: offer.rateCdiBps,
-      settledAt: iso(settlement.settledAt),
-      termDays: offer.termDays,
-      txHash: settlement.txHash,
-    };
+    return operationView(this.#context(), offer, settlement);
   }
 
-  #eventView(event: ChainEventRecord) {
-    return {
-      args: { ...event.args },
-      blockHash: event.blockHash,
-      blockNumber: event.blockNumber,
-      blockTimestamp: iso(event.blockTimestamp),
-      eventName: event.eventName,
-      logIndex: event.logIndex,
-      offerId: event.offerId,
-      txHash: event.txHash,
-    };
-  }
+  #eventView = eventView;
 
   #creditLimitView(state: WalletState) {
-    const party = this.#party(state.wallet);
-    return {
-      availableLimitCents: state.availableLimitCents.toString(),
-      institution: party.institution,
-      isRegistered: state.isRegistered,
-      observedAt: iso(state.observedAt),
-      observedBlock: state.observedBlock,
-      wallet: state.wallet,
-    };
+    return creditLimitView(state, this.#party(state.wallet));
   }
 
-  #creditLimitChangeView(change: CreditLimitChangeRecord) {
-    return {
-      blockTimestamp: iso(change.blockTimestamp),
-      changeKind: change.changeKind,
-      logIndex: change.logIndex,
-      newLimitCents: change.newLimitCents.toString(),
-      offerId: change.offerId,
-      previousLimitCents: change.previousLimitCents.toString(),
-      txHash: change.txHash,
-    };
-  }
+  #creditLimitChangeView = creditLimitChangeView;
 
   #requestView(request: TransactionRequestRecord) {
     const offer =
       request.offerId === null
         ? undefined
         : this.#data.offers.find((item) => item.id === request.offerId);
-    const args =
-      request.action === "create_offer"
-        ? [
-            request.borrowerWallet ?? "",
-            request.amountCents?.toString() ?? "",
-            String(request.rateCdiBps),
-            String(request.termDays),
-            String(request.validitySeconds),
-          ]
-        : [offer?.onchainOfferId.toString() ?? ""];
-    return {
-      action: request.action,
-      contractCall: {
-        args,
-        chainId: this.#data.deployment.chainId,
-        contractAddress: this.#data.deployment.contractAddress,
-        functionName: functionNames[request.action],
-      },
-      createdAt: iso(request.createdAt),
-      expiresAt: iso(request.expiresAt),
-      failureCode: request.failureCode,
-      id: request.id,
-      offerId: request.offerId,
-      params:
-        request.action === "create_offer"
-          ? {
-              amountCents: request.amountCents?.toString() ?? "",
-              borrowerWallet: request.borrowerWallet ?? "",
-              rateCdiBps: request.rateCdiBps ?? 0,
-              termDays: request.termDays ?? 0,
-              validitySeconds: request.validitySeconds ?? 0,
-            }
-          : null,
-      requesterWallet: request.requesterWallet,
-      status: this.#liveStatus(request),
-      submittedAt:
-        request.submittedAt === null ? null : iso(request.submittedAt),
-      txHash: request.txHash,
-    };
+    return requestView(this.#context(), request, offer?.onchainOfferId);
   }
 }

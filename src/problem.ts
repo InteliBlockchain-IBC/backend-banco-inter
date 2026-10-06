@@ -59,6 +59,20 @@ export class ApiProblem extends Error {
 }
 
 export const problems = {
+  databaseUnavailable: () =>
+    new ApiProblem(
+      503,
+      "database-unavailable",
+      "Banco de dados indisponível",
+      "O PostgreSQL não respondeu à verificação de prontidão.",
+    ),
+  deploymentNotConfigured: () =>
+    new ApiProblem(
+      503,
+      "deployment-not-configured",
+      "Contrato não registrado",
+      "Nenhum deployment existe no banco. Aplique as migrations e o seed (npm run db:setup).",
+    ),
   duplicateTransaction: (txHash: string) =>
     new ApiProblem(
       409,

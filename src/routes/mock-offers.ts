@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { sendData } from "../http.js";
-import type { MockStore } from "../mock/store.js";
+import type { DataStore } from "../store.js";
 import { ApiProblem } from "../problem.js";
 import {
   dataEnvelope,
@@ -64,7 +64,7 @@ type CreateBody = {
 
 export async function registerSimulatedOfferRoutes(
   app: FastifyInstance,
-  { store }: { store: MockStore },
+  { store }: { store: DataStore },
 ): Promise<void> {
   app.post<{ Body: CreateBody }>(
     "/api/mock/offers",
@@ -72,7 +72,7 @@ export async function registerSimulatedOfferRoutes(
       schema: {
         body: createBody,
         description:
-          "Cria uma oferta e um evento sintéticos somente em memória. lenderWallet não autentica ninguém; não envia transação nem transfere ativos.",
+          "Cria uma oferta e um evento sintéticos na fonte de dados ativa (PostgreSQL ou memória). lenderWallet não autentica ninguém; não envia transação nem transfere ativos.",
         operationId: "simulateOffer",
         response: { 201: simulatedResponse, ...errorResponses(400, 422, 503) },
         summary: "Simular criação de oferta",
@@ -96,7 +96,12 @@ export async function registerSimulatedOfferRoutes(
       },
     },
     async (request, reply) =>
-      sendData(reply, store.createSimulatedOffer(request.body), 201),
+      sendData(
+        reply,
+        store.source,
+        await store.createSimulatedOffer(request.body),
+        201,
+      ),
   );
 
   for (const action of ["accept", "reject", "cancel"] as const) {
@@ -104,7 +109,7 @@ export async function registerSimulatedOfferRoutes(
       `/api/mock/offers/:id/${action}`,
       {
         schema: {
-          description: `Simula ${action} de uma oferta em memória; não verifica identidade nem assina ou envia transações. Hashes e eventos são fictícios.`,
+          description: `Simula ${action} de uma oferta e grava a transição na fonte de dados ativa; não verifica identidade nem assina ou envia transações. Hashes e eventos são fictícios.`,
           operationId: `simulate${action[0]?.toUpperCase()}${action.slice(1)}Offer`,
           params: offerIdParams,
           response: {
@@ -116,7 +121,11 @@ export async function registerSimulatedOfferRoutes(
         },
       },
       async (request, reply) =>
-        sendData(reply, store.simulatedOfferAction(request.params.id, action)),
+        sendData(
+          reply,
+          store.source,
+          await store.simulatedOfferAction(request.params.id, action),
+        ),
     );
   }
 }

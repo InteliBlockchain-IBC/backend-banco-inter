@@ -1,12 +1,12 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "description": "API da PoC de crédito interfinanceiro overnight. Respostas /api/* de sucesso são fictícias (x-data-source: mock); erros usam Problem Details. Somente development/test expõem comandos simulados /api/mock e intenções de assinatura, sem autenticação de carteira. Nenhuma rota assina ou envia transações. Guia em docs/api.md.",
+    "description": "API da PoC de crédito interfinanceiro overnight. Com DATABASE_URL, /api/* lê e grava no PostgreSQL (x-data-source: postgres); sem ela, em development/test, usa dados em memória (x-data-source: mock). Os dados do seed e da simulação são sintéticos: hashes e endereços não existem na Sepolia. Erros usam Problem Details. Somente development/test expõem comandos simulados /api/mock e intenções de assinatura, sem autenticação de carteira. Nenhuma rota assina ou envia transações. Guia em docs/api.md.",
     "license": {
       "name": "MIT"
     },
     "title": "API do Backend Banco Inter",
-    "version": "0.3.0"
+    "version": "0.4.0"
   },
   "components": {
     "schemas": {
@@ -722,11 +722,12 @@
       },
       "Meta": {
         "additionalProperties": false,
-        "description": "Metadados. source=mock indica dado fictício.",
+        "description": "Metadados. source=mock: memória da instância; source=postgres: persistido no banco.",
         "properties": {
           "source": {
             "enum": [
-              "mock"
+              "mock",
+              "postgres"
             ],
             "type": "string"
           }
@@ -748,7 +749,8 @@
           },
           "source": {
             "enum": [
-              "mock"
+              "mock",
+              "postgres"
             ],
             "type": "string"
           },
@@ -850,7 +852,7 @@
         "tags": [
           "saúde"
         ],
-        "description": "Readiness: dependências prontas. Hoje nenhuma; o Postgres entra quando os mocks saírem.",
+        "description": "Readiness: com PostgreSQL configurado, executa SELECT 1 e responde 503 se o banco não responder. Com o store em memória, não há dependências.",
         "responses": {
           "200": {
             "description": "Default Response",
@@ -860,7 +862,25 @@
                   "additionalProperties": false,
                   "properties": {
                     "dependencies": {
-                      "items": {},
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "up"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "status"
+                        ],
+                        "type": "object"
+                      },
                       "type": "array"
                     },
                     "status": {
@@ -880,6 +900,47 @@
             }
           },
           "500": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+                  "properties": {
+                    "correlationId": {
+                      "description": "Id da requisição, igual ao registrado no log do servidor.",
+                      "type": "string"
+                    },
+                    "detail": {
+                      "description": "Explicação legível do erro.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Código HTTP repetido no corpo.",
+                      "type": "integer"
+                    },
+                    "title": {
+                      "description": "Resumo curto e estável do erro.",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "URI estável do tipo de erro. Os tipos possíveis estão em docs/api.md; todos começam com https://api.example.invalid/problems/.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "correlationId"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {
               "application/json": {
@@ -2030,7 +2091,7 @@
         "tags": [
           "simulação"
         ],
-        "description": "Cria uma oferta e um evento sintéticos somente em memória. lenderWallet não autentica ninguém; não envia transação nem transfere ativos.",
+        "description": "Cria uma oferta e um evento sintéticos na fonte de dados ativa (PostgreSQL ou memória). lenderWallet não autentica ninguém; não envia transação nem transfere ativos.",
         "requestBody": {
           "required": true,
           "content": {
@@ -2248,7 +2309,7 @@
         "tags": [
           "simulação"
         ],
-        "description": "Simula accept de uma oferta em memória; não verifica identidade nem assina ou envia transações. Hashes e eventos são fictícios.",
+        "description": "Simula accept de uma oferta e grava a transição na fonte de dados ativa; não verifica identidade nem assina ou envia transações. Hashes e eventos são fictícios.",
         "parameters": [
           {
             "schema": {
@@ -2439,7 +2500,7 @@
         "tags": [
           "simulação"
         ],
-        "description": "Simula reject de uma oferta em memória; não verifica identidade nem assina ou envia transações. Hashes e eventos são fictícios.",
+        "description": "Simula reject de uma oferta e grava a transição na fonte de dados ativa; não verifica identidade nem assina ou envia transações. Hashes e eventos são fictícios.",
         "parameters": [
           {
             "schema": {
@@ -2630,7 +2691,7 @@
         "tags": [
           "simulação"
         ],
-        "description": "Simula cancel de uma oferta em memória; não verifica identidade nem assina ou envia transações. Hashes e eventos são fictícios.",
+        "description": "Simula cancel de uma oferta e grava a transição na fonte de dados ativa; não verifica identidade nem assina ou envia transações. Hashes e eventos são fictícios.",
         "parameters": [
           {
             "schema": {
@@ -3303,15 +3364,15 @@
   ],
   "tags": [
     {
-      "description": "Ofertas fictícias da instância e, em development/test, intenções sem autenticação.",
+      "description": "Ofertas da projeção (seed sintético e simulação) e, em development/test, intenções sem autenticação.",
       "name": "ofertas"
     },
     {
-      "description": "Intenção fictícia pending/submitted; não há listener para confirmar ou reprovar.",
+      "description": "Intenção pending/submitted persistida; não há listener para confirmar ou reprovar.",
       "name": "intenções"
     },
     {
-      "description": "Comprovantes fictícios de liquidações simuladas.",
+      "description": "Comprovantes de liquidações simuladas.",
       "name": "operações"
     },
     {
@@ -3331,7 +3392,7 @@
       "name": "documentação"
     },
     {
-      "description": "Transições DvP fictícias, sem autenticação ou transferência.",
+      "description": "Transições DvP sintéticas gravadas na projeção, sem autenticação ou transferência.",
       "name": "simulação"
     }
   ]

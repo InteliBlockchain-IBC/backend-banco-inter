@@ -434,8 +434,9 @@ const syncStatusSchema = {
 const metaSchema = {
   $id: "Meta",
   additionalProperties: false,
-  description: "Metadados. source=mock indica dado fictício.",
-  properties: { source: { enum: ["mock"], type: "string" } },
+  description:
+    "Metadados. source=mock: memória da instância; source=postgres: persistido no banco.",
+  properties: { source: { enum: ["mock", "postgres"], type: "string" } },
   required: ["source"],
   type: "object",
 } as const;
@@ -447,7 +448,7 @@ const listMetaSchema = {
   properties: {
     limit: { type: "integer" },
     offset: { type: "integer" },
-    source: { enum: ["mock"], type: "string" },
+    source: { enum: ["mock", "postgres"], type: "string" },
     total: {
       description: "Total de itens com os filtros aplicados.",
       type: "integer",

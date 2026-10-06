@@ -15,8 +15,15 @@ import {
 import { ApiProblem, problems } from "../problem.js";
 import type { Fixtures } from "./fixtures.js";
 
+/**
+ * Regras da simulação DvP. As funções exportadas são puras e compartilhadas
+ * pelo store em memória e pelo `PgStore`, então os dois recusam e registram as
+ * mesmas transições com os mesmos argumentos de evento.
+ */
+
 export const MAX_MOCK_OFFERS = 100;
 const LAST_ISO_SECOND = 253402300799n;
+const ZERO_ADDRESS = `0x${"00".repeat(20)}`;
 
 export type SimulatedOfferInput = {
   amountCents: string;
@@ -27,21 +34,144 @@ export type SimulatedOfferInput = {
   validitySeconds: number;
 };
 
-function hash(value: string): Hash {
+export type SimulatedAction = "accept" | "reject" | "cancel";
+
+/** Hash sintético e determinístico: não corresponde a nenhuma transação real. */
+export function syntheticHash(value: string): Hash {
   return `0x${createHash("sha256").update(`mock:${value}`).digest("hex")}`;
 }
 
-function registered(data: Fixtures, address: Address): WalletState {
-  const wallet = data.wallets.find((item) => item.wallet === address);
-  if (!wallet?.isRegistered) {
+export function notRegisteredProblem(): ApiProblem {
+  return new ApiProblem(
+    422,
+    "not-registered-institution",
+    "Carteira não cadastrada",
+    "A carteira fictícia não está cadastrada.",
+  );
+}
+
+export function requireRegisteredWallet(
+  wallet: WalletState | undefined,
+): WalletState {
+  if (!wallet?.isRegistered) throw notRegisteredProblem();
+  return wallet;
+}
+
+export function parseCounterparties(input: SimulatedOfferInput): {
+  borrower: Address;
+  lender: Address;
+} {
+  const lender = input.lenderWallet.toLowerCase() as Address;
+  const borrower = input.borrowerWallet.toLowerCase() as Address;
+  if (
+    lender === ZERO_ADDRESS ||
+    borrower === ZERO_ADDRESS ||
+    lender === borrower
+  ) {
     throw new ApiProblem(
-      422,
-      "not-registered-institution",
-      "Carteira não cadastrada",
-      "A carteira fictícia não está cadastrada.",
+      400,
+      "invalid-counterparty",
+      "Contraparte inválida",
+      "As carteiras precisam ser diferentes e não nulas.",
     );
   }
-  return wallet;
+  return { borrower, lender };
+}
+
+export function parseAmount(amountCents: string): bigint {
+  const amount = BigInt(amountCents);
+  if (amount === 0n || amount > UINT256_MAX) throw problems.invalidAmount();
+  return amount;
+}
+
+export function requireLimit(borrower: WalletState, amount: bigint): void {
+  if (borrower.availableLimitCents < amount) {
+    throw problems.insufficientLimit(borrower.availableLimitCents, amount);
+  }
+}
+
+/** Horários on-chain têm resolução de segundos. */
+export function blockTime(now: Date): Date {
+  return new Date(Math.floor(now.getTime() / 1_000) * 1_000);
+}
+
+export function offerExpiry(
+  at: Date,
+  validitySeconds: number,
+): { expiresAt: Date; unix: bigint } {
+  const unix = BigInt(at.getTime() / 1_000) + BigInt(validitySeconds);
+  if (unix > LAST_ISO_SECOND) {
+    throw new ApiProblem(
+      400,
+      "invalid-expiry",
+      "Validade inválida",
+      "expiresAt ultrapassa o limite de datas ISO do simulador.",
+    );
+  }
+  return { expiresAt: new Date(Number(unix) * 1_000), unix };
+}
+
+/** Só uma oferta `offered` dentro da validade aceita transições. */
+export function requireActionable(offer: OfferRecord, now: Date): void {
+  const status = effectiveStatus(offer, now);
+  if (status === "expired" && offer.onchainStatus === 0)
+    throw problems.offerExpired();
+  if (status !== "offered") throw problems.invalidOfferStatus(status);
+}
+
+export function actionOutcome(action: SimulatedAction): {
+  eventName: ChainEventName;
+  status: OfferStatus;
+} {
+  if (action === "accept")
+    return { eventName: "OfferAccepted", status: "settled" };
+  if (action === "reject")
+    return { eventName: "OfferRejected", status: "rejected" };
+  return { eventName: "OfferCancelled", status: "cancelled" };
+}
+
+export function offerCreatedArgs(
+  offer: OfferRecord,
+  expiryUnix: bigint,
+): Record<string, string> {
+  return {
+    amount: offer.amountCents.toString(),
+    borrower: offer.borrower,
+    expiresAt: expiryUnix.toString(),
+    lender: offer.lender,
+    offerId: offer.onchainOfferId.toString(),
+    rateCDI: String(offer.rateCdiBps),
+    term: String(offer.termDays),
+  };
+}
+
+export function actionEventArgs(
+  offer: OfferRecord,
+  action: SimulatedAction,
+  at: Date,
+): Record<string, string> {
+  const offerId = offer.onchainOfferId.toString();
+  const timestamp = String(at.getTime() / 1_000);
+  return action === "cancel"
+    ? { offerId, timestamp }
+    : { borrower: offer.borrower, offerId, timestamp };
+}
+
+export function offerSettledArgs(
+  offer: OfferRecord,
+  at: Date,
+): Record<string, string> {
+  const offerId = offer.onchainOfferId.toString();
+  return {
+    amount: offer.amountCents.toString(),
+    borrower: offer.borrower,
+    lender: offer.lender,
+    offerId,
+    positionTokenId: offerId,
+    rateCDI: String(offer.rateCdiBps),
+    term: String(offer.termDays),
+    timestamp: String(at.getTime() / 1_000),
+  };
 }
 
 function block(data: Fixtures, at: Date, txHash: Hash) {
@@ -50,7 +180,7 @@ function block(data: Fixtures, at: Date, txHash: Hash) {
       data.syncCursor.lastProcessedBlock,
       ...data.chainEvents.map((event) => event.blockNumber),
     ) + 1;
-  const blockHash = hash(`block:${blockNumber}`);
+  const blockHash = syntheticHash(`block:${blockNumber}`);
   return {
     blockHash,
     blockNumber,
@@ -82,7 +212,7 @@ function block(data: Fixtures, at: Date, txHash: Hash) {
 export function simulateCreate(
   data: Fixtures,
   now: Date,
-  id: string,
+  newId: () => string,
   input: SimulatedOfferInput,
 ) {
   if (data.offers.length >= MAX_MOCK_OFFERS) {
@@ -93,44 +223,23 @@ export function simulateCreate(
       "O simulador atingiu o limite de ofertas nesta instância.",
     );
   }
-  const lender = input.lenderWallet.toLowerCase() as Address;
-  const borrower = input.borrowerWallet.toLowerCase() as Address;
-  if (
-    lender === `0x${"00".repeat(20)}` ||
-    borrower === `0x${"00".repeat(20)}` ||
-    lender === borrower
-  ) {
-    throw new ApiProblem(
-      400,
-      "invalid-counterparty",
-      "Contraparte inválida",
-      "As carteiras precisam ser diferentes e não nulas.",
-    );
-  }
-  registered(data, lender);
-  const borrowerState = registered(data, borrower);
-  const amount = BigInt(input.amountCents);
-  if (amount === 0n || amount > UINT256_MAX) throw problems.invalidAmount();
-  if (borrowerState.availableLimitCents < amount) {
-    throw problems.insufficientLimit(borrowerState.availableLimitCents, amount);
-  }
-  const at = new Date(Math.floor(now.getTime() / 1_000) * 1_000);
-  const expiry = BigInt(at.getTime() / 1_000) + BigInt(input.validitySeconds);
-  if (expiry > LAST_ISO_SECOND) {
-    throw new ApiProblem(
-      400,
-      "invalid-expiry",
-      "Validade inválida",
-      "expiresAt ultrapassa o limite de datas ISO do simulador.",
-    );
-  }
-  const expiresAt = new Date(Number(expiry) * 1_000);
+  const { borrower, lender } = parseCounterparties(input);
+  const find = (address: Address) =>
+    data.wallets.find((item) => item.wallet === address);
+  requireRegisteredWallet(find(lender));
+  const borrowerState = requireRegisteredWallet(find(borrower));
+  const amount = parseAmount(input.amountCents);
+  requireLimit(borrowerState, amount);
+  const at = blockTime(now);
+  const expiry = offerExpiry(at, input.validitySeconds);
   const onchainOfferId =
     data.offers.reduce(
       (max, offer) => (offer.onchainOfferId > max ? offer.onchainOfferId : max),
       0n,
     ) + 1n;
-  const txHash = hash(`${id}:create`);
+  // O id só é gerado depois de todas as recusas possíveis.
+  const id = newId();
+  const txHash = syntheticHash(`${id}:create`);
   const mined = block(data, at, txHash);
   const offer: OfferRecord = {
     amountCents: amount,
@@ -138,7 +247,7 @@ export function simulateCreate(
     createTxHash: txHash,
     createdAt: at,
     createdBlock: mined.blockNumber,
-    expiresAt,
+    expiresAt: expiry.expiresAt,
     id,
     lender,
     onchainOfferId,
@@ -146,15 +255,12 @@ export function simulateCreate(
     rateCdiBps: input.rateCdiBps,
     termDays: input.termDays,
   };
-  const created = mined.event(id, "OfferCreated", 0, {
-    amount: amount.toString(),
-    borrower,
-    expiresAt: expiry.toString(),
-    lender,
-    offerId: onchainOfferId.toString(),
-    rateCDI: String(input.rateCdiBps),
-    term: String(input.termDays),
-  });
+  const created = mined.event(
+    id,
+    "OfferCreated",
+    0,
+    offerCreatedArgs(offer, expiry.unix),
+  );
   return {
     data: {
       ...data,
@@ -170,65 +276,41 @@ export function simulateAction(
   data: Fixtures,
   now: Date,
   id: string,
-  action: "accept" | "reject" | "cancel",
+  action: SimulatedAction,
 ): { data: Fixtures; offer: OfferRecord; settlement: SettlementRecord | null } {
   const original = data.offers.find((item) => item.id === id.toLowerCase());
   if (!original) throw problems.notFound("A oferta");
-  const status = effectiveStatus(original, now);
-  if (status === "expired" && original.onchainStatus === 0)
-    throw problems.offerExpired();
-  if (status !== "offered") throw problems.invalidOfferStatus(status);
+  requireActionable(original, now);
+  const find = (address: Address) =>
+    data.wallets.find((item) => item.wallet === address);
   const borrowerState =
-    action === "accept" ? registered(data, original.borrower) : undefined;
-  if (action === "accept") registered(data, original.lender);
-  if (
-    borrowerState &&
-    borrowerState.availableLimitCents < original.amountCents
-  ) {
-    throw problems.insufficientLimit(
-      borrowerState.availableLimitCents,
-      original.amountCents,
-    );
-  }
-  const at = new Date(Math.floor(now.getTime() / 1_000) * 1_000);
-  const txHash = hash(`${id}:${action}`);
-  const mined = block(data, at, txHash);
-  const unix = String(at.getTime() / 1_000);
-  const offerId = original.onchainOfferId.toString();
-  const newStatus: OfferStatus =
     action === "accept"
-      ? "settled"
-      : action === "reject"
-        ? "rejected"
-        : "cancelled";
+      ? requireRegisteredWallet(find(original.borrower))
+      : undefined;
+  if (action === "accept") requireRegisteredWallet(find(original.lender));
+  if (borrowerState) requireLimit(borrowerState, original.amountCents);
+  const at = blockTime(now);
+  const txHash = syntheticHash(`${original.id}:${action}`);
+  const mined = block(data, at, txHash);
+  const outcome = actionOutcome(action);
   const offer: OfferRecord = {
     ...original,
-    onchainStatus: onchainStatusCodes[newStatus],
+    onchainStatus: onchainStatusCodes[outcome.status],
   };
   const firstEvent = mined.event(
     original.id,
-    action === "accept"
-      ? "OfferAccepted"
-      : action === "reject"
-        ? "OfferRejected"
-        : "OfferCancelled",
+    outcome.eventName,
     0,
-    action === "cancel"
-      ? { offerId, timestamp: unix }
-      : { borrower: original.borrower, offerId, timestamp: unix },
+    actionEventArgs(original, action, at),
   );
   const settledEvent =
     action === "accept"
-      ? mined.event(original.id, "OfferSettled", 1, {
-          amount: original.amountCents.toString(),
-          borrower: original.borrower,
-          lender: original.lender,
-          offerId,
-          positionTokenId: offerId,
-          rateCDI: String(original.rateCdiBps),
-          term: String(original.termDays),
-          timestamp: unix,
-        })
+      ? mined.event(
+          original.id,
+          "OfferSettled",
+          1,
+          offerSettledArgs(original, at),
+        )
       : null;
   const settlement: SettlementRecord | null = settledEvent
     ? {

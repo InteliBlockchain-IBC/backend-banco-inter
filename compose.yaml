@@ -1,3 +1,7 @@
+# Ambiente local em um comando: `docker compose up --build`.
+# db -> setup (migrations + seed de demonstração) -> api, nessa ordem.
+x-database-url: &database-url postgresql://${POSTGRES_USER:-banco_inter}:${POSTGRES_PASSWORD:-banco_inter_local}@db:5432/${POSTGRES_DB:-banco_inter}
+
 services:
   db:
     image: postgres:17-bookworm
@@ -9,7 +13,6 @@ services:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -17,19 +20,34 @@ services:
       retries: 10
       start_period: 10s
 
+  # Executa uma vez e termina: aplica migrations versionadas e grava o seed.
+  # SEED_DEMO=if-empty (padrão) preserva dados; reset recria com horários novos.
+  setup:
+    build: .
+    command: ["node", "dist/scripts/setup-db.js"]
+    environment:
+      DATABASE_URL: *database-url
+      SEED_DEMO: ${SEED_DEMO:-if-empty}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   api:
     build: .
     environment:
-      NODE_ENV: production
+      DATABASE_URL: *database-url
+      # Ambiente local: development expõe /api/mock/* e as intenções POST.
+      NODE_ENV: ${API_NODE_ENV:-development}
       HOST: 0.0.0.0
       PORT: "3000"
     ports:
       - "127.0.0.1:${API_PORT:-3000}:3000"
     depends_on:
-      db:
-        condition: service_healthy
+      setup:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 5

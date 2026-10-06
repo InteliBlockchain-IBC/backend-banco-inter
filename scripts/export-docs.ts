@@ -548,16 +548,16 @@ async function main(): Promise<void> {
   const collection = {
     info: {
       description: [
-        `API mock do backend Banco Inter, versão ${API_VERSION}.`,
+        `API do backend Banco Inter, versão ${API_VERSION}. Funciona com a API em memória ou com PostgreSQL (docker compose up).`,
         "",
-        "Respostas de sucesso /api/* são fictícias (X-Data-Source: mock); erros são Problem Details.",
-        "Rodando a API localmente (npm run start), ajuste {{baseUrl}} se necessário.",
+        "X-Data-Source indica a origem: postgres (persistido) ou mock (memória). Os dados são sintéticos; erros são Problem Details.",
+        "Ambiente local com banco: docker compose up (porta 3000). Ajuste {{baseUrl}} se necessário.",
         "Carteiras de exemplo: lenderWallet = Banco Alfa, borrowerWallet = Banco Beta.",
         "Somente intenções de assinatura exigem X-Wallet-Address, sem autenticar a carteira.",
-        "POST só existe em development/test; production serve consultas fictícias.",
+        "POST só existe em development/test; production serve apenas consultas.",
         "Guia completo em docs/api.md.",
       ].join("\n"),
-      name: "Backend Banco Inter - API mock",
+      name: "Backend Banco Inter - API",
       schema:
         "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
       version: API_VERSION,

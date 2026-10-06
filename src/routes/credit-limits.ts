@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { sendData } from "../http.js";
-import type { MockStore } from "../mock/store.js";
+import type { DataStore } from "../store.js";
 import {
   dataEnvelope,
   errorResponses,
@@ -39,7 +39,7 @@ type ListQuery = {
 
 export async function registerCreditLimitRoutes(
   app: FastifyInstance,
-  { store }: { store: MockStore },
+  { store }: { store: DataStore },
 ): Promise<void> {
   app.get<{ Querystring: ListQuery }>(
     "/api/credit-limits",
@@ -58,7 +58,11 @@ export async function registerCreditLimitRoutes(
       },
     },
     async (request, reply) =>
-      sendData(reply, store.listCreditLimits(request.query)),
+      sendData(
+        reply,
+        store.source,
+        await store.listCreditLimits(request.query),
+      ),
   );
 
   app.get<{ Params: { wallet: string } }>(
@@ -77,7 +81,11 @@ export async function registerCreditLimitRoutes(
       },
     },
     async (request, reply) =>
-      sendData(reply, store.getCreditLimit(request.params.wallet)),
+      sendData(
+        reply,
+        store.source,
+        await store.getCreditLimit(request.params.wallet),
+      ),
   );
 
   app.get<{ Params: { wallet: string } }>(
@@ -100,6 +108,10 @@ export async function registerCreditLimitRoutes(
       },
     },
     async (request, reply) =>
-      sendData(reply, store.creditLimitHistory(request.params.wallet)),
+      sendData(
+        reply,
+        store.source,
+        await store.creditLimitHistory(request.params.wallet),
+      ),
   );
 }

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { problemSchema } from "../problem.js";
+import type { DataStore } from "../store.js";
 
 const healthResponse = {
   additionalProperties: false,
@@ -11,7 +12,18 @@ const healthResponse = {
 const readyResponse = {
   additionalProperties: false,
   properties: {
-    dependencies: { items: {}, type: "array" },
+    dependencies: {
+      items: {
+        additionalProperties: false,
+        properties: {
+          name: { type: "string" },
+          status: { const: "up", type: "string" },
+        },
+        required: ["name", "status"],
+        type: "object",
+      },
+      type: "array",
+    },
     status: { const: "ready", type: "string" },
   },
   required: ["status", "dependencies"],
@@ -20,6 +32,7 @@ const readyResponse = {
 
 export async function registerHealthRoutes(
   app: FastifyInstance,
+  { store }: { store: DataStore },
 ): Promise<void> {
   app.get(
     "/health",
@@ -39,13 +52,26 @@ export async function registerHealthRoutes(
     {
       schema: {
         description:
-          "Readiness: dependências prontas. Hoje nenhuma; o Postgres entra quando os mocks saírem.",
+          "Readiness: com PostgreSQL configurado, executa SELECT 1 e responde 503 se o banco não responder. Com o store em memória, não há dependências.",
         operationId: "getReady",
-        response: { 200: readyResponse, 500: problemSchema },
+        response: {
+          200: readyResponse,
+          500: problemSchema,
+          503: problemSchema,
+        },
         summary: "Readiness",
         tags: ["saúde"],
       },
     },
-    async () => ({ dependencies: [], status: "ready" }),
+    async () => {
+      await store.check();
+      return {
+        dependencies:
+          store.source === "postgres"
+            ? [{ name: "postgres", status: "up" as const }]
+            : [],
+        status: "ready" as const,
+      };
+    },
   );
 }

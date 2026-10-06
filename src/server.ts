@@ -3,7 +3,16 @@ import { buildApp } from "./app.js";
 import { loadConfig, type AppConfig } from "./config.js";
 
 export async function startServer(config: AppConfig): Promise<FastifyInstance> {
-  const app = await buildApp({ nodeEnv: config.nodeEnv });
+  const app = await buildApp({
+    nodeEnv: config.nodeEnv,
+    ...(config.databaseUrl === undefined
+      ? {}
+      : { databaseUrl: config.databaseUrl }),
+  });
+  app.log.info(
+    { dataSource: config.databaseUrl === undefined ? "mock" : "postgres" },
+    "fonte de dados configurada",
+  );
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, "encerrando");
