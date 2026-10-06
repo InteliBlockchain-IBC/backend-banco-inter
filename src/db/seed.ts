@@ -24,6 +24,7 @@ const DATA_TABLES = [
   "offers",
   "contract_wallet_state",
   "contract_deployments",
+  "institution_wallets",
   "institutions",
 ];
 
@@ -70,15 +71,22 @@ export async function seedDemo(
     }
 
     for (const wallet of data.wallets) {
+      if (wallet.institutionId !== null) {
+        // Vínculo off-chain, válido para qualquer deployment.
+        await client.query(
+          `INSERT INTO institution_wallets (wallet_address, institution_id)
+           VALUES ($1, $2) ON CONFLICT (wallet_address) DO NOTHING`,
+          [wallet.wallet, wallet.institutionId],
+        );
+      }
       await client.query(
         `INSERT INTO contract_wallet_state (chain_id, contract_address,
-           wallet_address, institution_id, is_registered, available_limit_cents,
+           wallet_address, is_registered, available_limit_cents,
            observed_block, observed_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           ...scope,
           wallet.wallet,
-          wallet.institutionId,
           wallet.isRegistered,
           wallet.availableLimitCents.toString(),
           wallet.observedBlock,

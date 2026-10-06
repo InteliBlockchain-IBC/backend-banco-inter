@@ -296,7 +296,7 @@ const OFFER_COLUMNS = `
   s.position_token_id AS s_position_token_id`;
 
 const WALLET_COLUMNS = `
-  w.wallet_address, w.institution_id, i.name AS institution_name,
+  w.wallet_address, iw.institution_id, i.name AS institution_name,
   w.is_registered, w.available_limit_cents, w.observed_block, w.observed_at`;
 
 const REQUEST_COLUMNS = `
@@ -562,7 +562,8 @@ export class PgStore implements DataStore {
     const { rows } = await this.#pool.query<WalletRow>(
       `SELECT ${WALLET_COLUMNS}
          FROM contract_wallet_state w
-         LEFT JOIN institutions i ON i.id = w.institution_id
+         LEFT JOIN institution_wallets iw ON iw.wallet_address = w.wallet_address
+         LEFT JOIN institutions i ON i.id = iw.institution_id
          ${where}
         ORDER BY w.available_limit_cents DESC, w.wallet_address`,
       where.params,
@@ -972,15 +973,27 @@ export class PgStore implements DataStore {
     ];
     const parties = new Map<string, Party>();
     if (addresses.length > 0) {
-      const { rows: wallets } = await db.query<WalletRow>(
-        `SELECT ${WALLET_COLUMNS}
-           FROM contract_wallet_state w
-           LEFT JOIN institutions i ON i.id = w.institution_id
-          WHERE w.chain_id = $1 AND w.contract_address = $2
-            AND w.wallet_address = ANY($3)`,
-        [d.chainId, d.contractAddress, addresses],
+      // O vínculo com o banco independe do deployment: lê institution_wallets.
+      const { rows: owners } = await db.query<{
+        institution_id: string;
+        institution_name: string;
+        wallet_address: string;
+      }>(
+        `SELECT iw.wallet_address, iw.institution_id, i.name AS institution_name
+           FROM institution_wallets iw
+           JOIN institutions i ON i.id = iw.institution_id
+          WHERE iw.wallet_address = ANY($1)`,
+        [addresses],
       );
-      for (const row of wallets) parties.set(row.wallet_address, toParty(row));
+      for (const row of owners) {
+        parties.set(
+          row.wallet_address,
+          party(row.wallet_address as Address, {
+            id: row.institution_id,
+            name: row.institution_name,
+          }),
+        );
+      }
     }
     return {
       deployment: d,
@@ -1033,7 +1046,8 @@ export class PgStore implements DataStore {
     const { rows } = await db.query<WalletRow>(
       `SELECT ${WALLET_COLUMNS}
          FROM contract_wallet_state w
-         LEFT JOIN institutions i ON i.id = w.institution_id
+         LEFT JOIN institution_wallets iw ON iw.wallet_address = w.wallet_address
+         LEFT JOIN institutions i ON i.id = iw.institution_id
         WHERE w.chain_id = $1 AND w.contract_address = $2 AND w.wallet_address = $3
         ${forUpdate ? "FOR UPDATE OF w" : ""}`,
       [d.chainId, d.contractAddress, lower(wallet)],

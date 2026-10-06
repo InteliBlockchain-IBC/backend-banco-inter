@@ -379,7 +379,7 @@ test("an empty database answers 503 until the seed runs", {
   await db.connect();
   t.after(() => db.end());
   await db.query(
-    "TRUNCATE sync_cursors, settlements, credit_limit_history, chain_events, transaction_requests, offers, contract_wallet_state, contract_deployments, institutions",
+    "TRUNCATE sync_cursors, settlements, credit_limit_history, chain_events, transaction_requests, offers, contract_wallet_state, contract_deployments, institution_wallets, institutions",
   );
   const app = await pgApp(t, databaseUrl, clock());
 
@@ -397,4 +397,66 @@ test("an empty database answers 503 until the seed runs", {
   });
   const after = await app.inject({ method: "GET", url: "/api/offers" });
   assert.equal(after.json().meta.total, 9);
+});
+
+test("one institution operates several wallets", { skip }, async (t) => {
+  const databaseUrl = await isolatedDatabase(t);
+  const db = new pg.Client({ connectionString: databaseUrl });
+  await db.connect();
+  t.after(() => db.end());
+  const treasury = `0x${"a7".repeat(20)}`;
+  const { rows } = await db.query<{
+    chain_id: string;
+    contract_address: string;
+  }>("SELECT chain_id, contract_address FROM contract_deployments");
+  const deployment = rows[0];
+  assert.ok(deployment);
+  // Segunda carteira do Banco Alfa: vínculo off-chain + estado on-chain próprio.
+  await db.query(
+    `INSERT INTO institution_wallets (wallet_address, institution_id, label)
+     SELECT $1, institution_id, 'Tesouraria' FROM institution_wallets
+      WHERE wallet_address = $2`,
+    [treasury, mockWallets.alfa],
+  );
+  await db.query(
+    `INSERT INTO contract_wallet_state (chain_id, contract_address,
+       wallet_address, is_registered, available_limit_cents, observed_block)
+     VALUES ($1, $2, $3, true, 5000000000, 1)`,
+    [deployment.chain_id, deployment.contract_address, treasury],
+  );
+  const app = await pgApp(t, databaseUrl, clock());
+
+  const [main, second] = await Promise.all(
+    [mockWallets.alfa, treasury].map((wallet) =>
+      app.inject({ method: "GET", url: `/api/credit-limits/${wallet}` }),
+    ),
+  );
+  assert.equal(second?.statusCode, 200);
+  assert.deepEqual(
+    second?.json().data.institution,
+    main?.json().data.institution,
+  );
+  assert.equal(second?.json().data.availableLimitCents, "5000000000");
+  assert.notEqual(
+    main?.json().data.availableLimitCents,
+    second?.json().data.availableLimitCents,
+    "cada carteira tem o próprio limite on-chain",
+  );
+
+  const create = await app.inject({
+    method: "POST",
+    payload: { ...simulated, lenderWallet: treasury },
+    url: "/api/mock/offers",
+  });
+  assert.equal(create.statusCode, 201);
+  const lender = create.json().data.offer.lender;
+  assert.equal(lender.wallet, treasury);
+  assert.equal(lender.institution.name, "Banco Alfa S.A. (fictício)");
+
+  const byInstitution = await db.query<{ wallets: string }>(
+    `SELECT count(*) AS wallets FROM institution_wallets iw
+       JOIN institutions i ON i.id = iw.institution_id
+      WHERE i.name = 'Banco Alfa S.A. (fictício)'`,
+  );
+  assert.equal(byInstitution.rows[0]?.wallets, "2");
 });
