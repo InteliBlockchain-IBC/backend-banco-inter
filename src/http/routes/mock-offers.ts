@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { sendData } from "../reply.js";
-import type { DataStore } from "../../repositories/repository.js";
+import type { Repository } from "../../repositories/repository.js";
 import { ApiProblem } from "../errors.js";
 import {
   dataEnvelope,
@@ -64,7 +64,7 @@ type CreateBody = {
 
 export async function registerSimulatedOfferRoutes(
   app: FastifyInstance,
-  { store }: { store: DataStore },
+  { repository }: { repository: Repository },
 ): Promise<void> {
   app.post<{ Body: CreateBody }>(
     "/api/mock/offers",
@@ -98,8 +98,8 @@ export async function registerSimulatedOfferRoutes(
     async (request, reply) =>
       sendData(
         reply,
-        store.source,
-        await store.createSimulatedOffer(request.body),
+        repository.source,
+        await repository.createSimulatedOffer(request.body),
         201,
       ),
   );
@@ -123,8 +123,8 @@ export async function registerSimulatedOfferRoutes(
       async (request, reply) =>
         sendData(
           reply,
-          store.source,
-          await store.simulatedOfferAction(request.params.id, action),
+          repository.source,
+          await repository.simulatedOfferAction(request.params.id, action),
         ),
     );
   }

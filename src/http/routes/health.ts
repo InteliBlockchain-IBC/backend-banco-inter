@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { problemSchema } from "../errors.js";
-import type { DataStore } from "../../repositories/repository.js";
+import type { Repository } from "../../repositories/repository.js";
 
 const healthResponse = {
   additionalProperties: false,
@@ -32,7 +32,7 @@ const readyResponse = {
 
 export async function registerHealthRoutes(
   app: FastifyInstance,
-  { store }: { store: DataStore },
+  { repository }: { repository: Repository },
 ): Promise<void> {
   app.get(
     "/health",
@@ -52,7 +52,7 @@ export async function registerHealthRoutes(
     {
       schema: {
         description:
-          "Readiness: com PostgreSQL configurado, executa SELECT 1 e responde 503 se o banco não responder. Com o store em memória, não há dependências.",
+          "Readiness: com PostgreSQL configurado, executa SELECT 1 e responde 503 se o banco não responder. Com o repositório em memória, não há dependências.",
         operationId: "getReady",
         response: {
           200: readyResponse,
@@ -64,10 +64,10 @@ export async function registerHealthRoutes(
       },
     },
     async () => {
-      await store.check();
+      await repository.check();
       return {
         dependencies:
-          store.source === "postgres"
+          repository.source === "postgres"
             ? [{ name: "postgres", status: "up" as const }]
             : [],
         status: "ready" as const,

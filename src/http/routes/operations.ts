@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { sendData, sendList } from "../reply.js";
-import type { DataStore } from "../../repositories/repository.js";
+import type { Repository } from "../../repositories/repository.js";
 import {
   dataEnvelope,
   errorResponses,
@@ -25,7 +25,7 @@ const listQuery = {
 
 export async function registerOperationRoutes(
   app: FastifyInstance,
-  { store }: { store: DataStore },
+  { repository }: { repository: Repository },
 ): Promise<void> {
   app.get<{ Querystring: { limit: number; offset: number; wallet?: string } }>(
     "/api/operations",
@@ -44,11 +44,14 @@ export async function registerOperationRoutes(
       const { limit, offset, wallet } = request.query;
       return sendList(
         reply,
-        store.source,
-        await store.listOperations(wallet === undefined ? {} : { wallet }, {
-          limit,
-          offset,
-        }),
+        repository.source,
+        await repository.listOperations(
+          wallet === undefined ? {} : { wallet },
+          {
+            limit,
+            offset,
+          },
+        ),
       );
     },
   );
@@ -72,8 +75,8 @@ export async function registerOperationRoutes(
     async (request, reply) =>
       sendData(
         reply,
-        store.source,
-        await store.getOperation(request.params.txHash),
+        repository.source,
+        await repository.getOperation(request.params.txHash),
       ),
   );
 }

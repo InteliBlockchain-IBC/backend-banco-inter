@@ -6,8 +6,8 @@ import Fastify, {
   type FastifyReply,
   type FastifyRequest,
 } from "fastify";
-import { PgStore } from "./repositories/postgres/pg-repository.js";
-import { MockStore } from "./repositories/in-memory/in-memory-repository.js";
+import { PgRepository } from "./repositories/postgres/pg-repository.js";
+import { InMemoryRepository } from "./repositories/in-memory/in-memory-repository.js";
 import {
   ApiProblem,
   createProblem,
@@ -22,7 +22,7 @@ import { registerSimulatedOfferRoutes } from "./http/routes/mock-offers.js";
 import { registerOperationRoutes } from "./http/routes/operations.js";
 import { registerTransactionRequestRoutes } from "./http/routes/transaction-requests.js";
 import { sharedSchemas } from "./http/schemas.js";
-import type { DataStore } from "./repositories/repository.js";
+import type { Repository } from "./repositories/repository.js";
 
 export const API_VERSION = "0.4.0";
 
@@ -36,7 +36,7 @@ export type BuildOptions = {
   /** Com URL, as rotas leem e gravam no PostgreSQL; sem, usam a memória. */
   databaseUrl?: string;
   /** Store pronto (testes); tem precedência sobre `databaseUrl`. */
-  store?: DataStore;
+  repository?: Repository;
 };
 
 const securityHeaders = {
@@ -151,11 +151,11 @@ export async function buildApp(
   options: BuildOptions = {},
 ): Promise<FastifyInstance> {
   const now = options.now ?? (() => new Date());
-  const store: DataStore =
-    options.store ??
+  const repository: Repository =
+    options.repository ??
     (options.databaseUrl === undefined
-      ? new MockStore(now, options.newId)
-      : PgStore.fromUrl(options.databaseUrl, {
+      ? new InMemoryRepository(now, options.newId)
+      : PgRepository.fromUrl(options.databaseUrl, {
           now,
           ...(options.newId === undefined ? {} : { newId: options.newId }),
         }));
@@ -204,7 +204,7 @@ export async function buildApp(
   });
 
   app.addHook("onClose", async () => {
-    await store.close();
+    await repository.close();
   });
 
   app.addHook("onSend", async (_request, reply) => {
@@ -281,21 +281,21 @@ export async function buildApp(
     },
   });
   await app.register(swaggerUi, { routePrefix: "/docs" });
-  await app.register(registerHealthRoutes, { store });
-  await app.register(registerChainRoutes, { store });
+  await app.register(registerHealthRoutes, { repository });
+  await app.register(registerChainRoutes, { repository });
   await app.register(registerOfferRoutes, {
-    store,
+    repository,
     enableIntents: nodeEnv !== "production",
   });
   await app.register(registerTransactionRequestRoutes, {
-    store,
+    repository,
     enableIntents: nodeEnv !== "production",
   });
   if (nodeEnv !== "production") {
-    await app.register(registerSimulatedOfferRoutes, { store });
+    await app.register(registerSimulatedOfferRoutes, { repository });
   }
-  await app.register(registerOperationRoutes, { store });
-  await app.register(registerCreditLimitRoutes, { store });
+  await app.register(registerOperationRoutes, { repository });
+  await app.register(registerCreditLimitRoutes, { repository });
   app.get(
     "/openapi.json",
     {

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { sendData } from "../reply.js";
-import type { DataStore } from "../../repositories/repository.js";
+import type { Repository } from "../../repositories/repository.js";
 import {
   dataEnvelope,
   errorResponses,
@@ -39,7 +39,7 @@ type ListQuery = {
 
 export async function registerCreditLimitRoutes(
   app: FastifyInstance,
-  { store }: { store: DataStore },
+  { repository }: { repository: Repository },
 ): Promise<void> {
   app.get<{ Querystring: ListQuery }>(
     "/api/credit-limits",
@@ -60,8 +60,8 @@ export async function registerCreditLimitRoutes(
     async (request, reply) =>
       sendData(
         reply,
-        store.source,
-        await store.listCreditLimits(request.query),
+        repository.source,
+        await repository.listCreditLimits(request.query),
       ),
   );
 
@@ -83,8 +83,8 @@ export async function registerCreditLimitRoutes(
     async (request, reply) =>
       sendData(
         reply,
-        store.source,
-        await store.getCreditLimit(request.params.wallet),
+        repository.source,
+        await repository.getCreditLimit(request.params.wallet),
       ),
   );
 
@@ -110,8 +110,8 @@ export async function registerCreditLimitRoutes(
     async (request, reply) =>
       sendData(
         reply,
-        store.source,
-        await store.creditLimitHistory(request.params.wallet),
+        repository.source,
+        await repository.creditLimitHistory(request.params.wallet),
       ),
   );
 }

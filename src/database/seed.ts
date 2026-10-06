@@ -2,7 +2,7 @@ import pg from "pg";
 import { createFixtures } from "../demo/fixtures.js";
 
 /**
- * Popula o banco com a massa de demonstração de `src/mock/fixtures.ts`: as
+ * Popula o banco com a massa de demonstração de `src/demo/fixtures.ts`: as
  * mesmas instituições, carteiras, ofertas, eventos, liquidações e histórico
  * de limite que a API em memória serve. Os horários são relativos a `now`,
  * então logo após o seed sempre há ofertas abertas.

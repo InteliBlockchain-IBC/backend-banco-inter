@@ -852,7 +852,7 @@
         "tags": [
           "saúde"
         ],
-        "description": "Readiness: com PostgreSQL configurado, executa SELECT 1 e responde 503 se o banco não responder. Com o store em memória, não há dependências.",
+        "description": "Readiness: com PostgreSQL configurado, executa SELECT 1 e responde 503 se o banco não responder. Com o repositório em memória, não há dependências.",
         "responses": {
           "200": {
             "description": "Default Response",

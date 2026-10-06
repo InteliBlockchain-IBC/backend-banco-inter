@@ -36,7 +36,7 @@ import {
 import { problems } from "../../http/errors.js";
 import {
   type CreditLimitFilter,
-  type DataStore,
+  type Repository,
   type OfferFilter,
   type OfferIntentInput,
   type OfferView,
@@ -339,25 +339,25 @@ class Where {
   }
 }
 
-export type PgStoreOptions = {
+export type PgRepositoryOptions = {
   now?: () => Date;
   newId?: () => string;
 };
 
-export class PgStore implements DataStore {
+export class PgRepository implements Repository {
   readonly source = "postgres" as const;
   readonly #pool: pg.Pool;
   readonly #now: () => Date;
   readonly #newId: () => string;
 
-  constructor(pool: pg.Pool, options: PgStoreOptions = {}) {
+  constructor(pool: pg.Pool, options: PgRepositoryOptions = {}) {
     this.#pool = pool;
     this.#now = options.now ?? (() => new Date());
     this.#newId = options.newId ?? randomUUID;
   }
 
-  static fromUrl(connectionString: string, options: PgStoreOptions = {}) {
-    return new PgStore(
+  static fromUrl(connectionString: string, options: PgRepositoryOptions = {}) {
+    return new PgRepository(
       new pg.Pool({
         connectionString,
         // Uma requisição presa não deve segurar o pool inteiro.

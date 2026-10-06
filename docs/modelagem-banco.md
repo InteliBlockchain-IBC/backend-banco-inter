@@ -1,6 +1,6 @@
 # Modelo de dados — contrato DvP
 
-Modelo para a PoC em Sepolia, baseado no **Guia de modelagem para o backend — contrato DvP** e na interface/implementação da branch [`feat/escopo-reduzido-dvp`](https://github.com/anacampos-crypto/projeto-inter-web3/tree/b68cf40732519c8b0eae2d300644676f75a95016). [`migrations/001_initial_schema.sql`](../migrations/001_initial_schema.sql) define o esquema e [`002_institution_wallets.sql`](../migrations/002_institution_wallets.sql) permite várias carteiras por instituição; `npm run db:setup` (ou o serviço `setup` do compose) aplica as migrations e grava a massa de demonstração (`src/db/seed.ts`). A API lê e grava nestas tabelas por `src/db/pg-store.ts`; o listener ainda não existe.
+Modelo para a PoC em Sepolia, baseado no **Guia de modelagem para o backend — contrato DvP** e na interface/implementação da branch [`feat/escopo-reduzido-dvp`](https://github.com/anacampos-crypto/projeto-inter-web3/tree/b68cf40732519c8b0eae2d300644676f75a95016). [`migrations/001_initial_schema.sql`](../migrations/001_initial_schema.sql) define o esquema e [`002_institution_wallets.sql`](../migrations/002_institution_wallets.sql) permite várias carteiras por instituição; `npm run db:setup` (ou o serviço `setup` do compose) aplica as migrations e grava a massa de demonstração (`src/database/seed.ts`). A API lê e grava nestas tabelas por `src/repositories/postgres/pg-repository.ts`; o listener ainda não existe.
 
 ```mermaid
 erDiagram

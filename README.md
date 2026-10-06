@@ -152,7 +152,7 @@ flowchart LR
     BRL["BRLt · ERC-20"]
     CDIP["CDIP · NFT ERC-721"]
     API["Fastify · TypeScript"]
-    STORE["DataStore · PgStore / MockStore"]
+    STORE["Repository · PgRepository / InMemoryRepository"]
     MIG["setup: migrations + seed"]
     DB[("PostgreSQL")]
     LIS["Listener planejado"]
@@ -178,24 +178,32 @@ Tecnologias, alternativas e riscos: [`docs/arquitetura.md`](docs/arquitetura.md)
 
 ```
 src/
-  app.ts              composição do Fastify, ambientes, erros e OpenAPI
-  server.ts           bootstrap e ciclo de vida
-  domain.ts           tipos e unidades do contrato DvP
-  schemas.ts          schemas JSON/OpenAPI
-  store.ts            interface DataStore entre rotas e fonte de dados
-  views.ts            montagem do payload, comum às duas fontes
-  db/pg-store.ts      PgStore: consultas e transações no PostgreSQL
-  db/migrate.ts       runner PostgreSQL versionado e serializado
-  db/seed.ts          massa de demonstração (if-empty | reset)
-  mock/               fixtures, store em memória e regras da simulação DvP
-  routes/             consultas, intenções e simulação
-scripts/
-  setup-db.ts         migrations + seed (serviço setup do compose)
-  migrate.ts, seed.ts comandos isolados
-  export-docs.ts      OpenAPI e coleção Postman do ambiente development
-migrations/           esquema SQL versionado (001 esquema inicial, 002 carteiras por instituição)
-test/                 testes HTTP e integração PostgreSQL opcional
-docs/                 arquitetura, modelagem e referência de API
+  server.ts             entrypoint: lê a configuração e sobe o processo
+  app.ts                composição do Fastify; escolhe o repositório
+  config.ts             variáveis de ambiente validadas
+  http/                 camada HTTP
+    routes/             rotas (papel de controllers)
+    schemas.ts          schemas JSON/OpenAPI
+    errors.ts           Problem Details
+    reply.ts            envelope { data, meta } e X-Data-Source
+  domain/               regras puras, sem banco nem HTTP
+    types.ts            tipos e unidades do contrato DvP
+    rules.ts            validações, transições e argumentos de evento
+    views.ts            montagem do payload, comum aos repositórios
+  repositories/         acesso a dados
+    repository.ts       interface Repository
+    postgres/           PgRepository: SQL e transações no PostgreSQL
+    in-memory/          InMemoryRepository e simulação sobre as fixtures
+  database/             migrate.ts (runner) e seed.ts (massa de demonstração)
+  demo/fixtures.ts      massa de demonstração (memória e seed)
+scripts/                setup-db, migrate, seed e export-docs
+migrations/             esquema SQL versionado (001 esquema inicial, 002 carteiras por instituição)
+test/
+  unit/                 funções isoladas (configuração)
+  http/                 rotas via app.inject, sem banco
+  db/                   migrations e PgRepository (exigem TEST_DATABASE_URL)
+  process/              sobe o servidor real como processo
+docs/                   arquitetura, modelagem e referência de API
 ```
 
 ## Testes e CI

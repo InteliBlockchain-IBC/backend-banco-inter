@@ -13,7 +13,7 @@ import {
 import { problems } from "../../http/errors.js";
 import {
   type CreditLimitFilter,
-  type DataStore,
+  type Repository,
   type OfferFilter,
   type OfferIntentInput,
   type Page,
@@ -34,11 +34,8 @@ import {
   type ViewContext,
 } from "../../domain/views.js";
 import { createFixtures, type Fixtures } from "../../demo/fixtures.js";
-import {
-  simulateAction,
-  simulateCreate,
-  type SimulatedOfferInput,
-} from "../../domain/rules.js";
+import type { SimulatedOfferInput } from "../../domain/rules.js";
+import { simulateAction, simulateCreate } from "./simulate.js";
 
 export { REQUEST_TTL_MS } from "../repository.js";
 export { SYNC_STALE_AFTER_SECONDS } from "../../domain/views.js";
@@ -57,7 +54,7 @@ function paginate<T>(items: T[], page: Page): Paged<T> {
 
 /** Estado fictício por instância; intenções não confirmam nada e comandos de
  * demonstração atualizam apenas as projeções em memória. */
-export class MockStore implements DataStore {
+export class InMemoryRepository implements Repository {
   readonly source = "mock" as const;
   #data: Fixtures;
   readonly #newId: () => string;

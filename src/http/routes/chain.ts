@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { sendData } from "../reply.js";
-import type { DataStore } from "../../repositories/repository.js";
+import type { Repository } from "../../repositories/repository.js";
 import { dataEnvelope, errorResponses } from "../schemas.js";
 
 export async function registerChainRoutes(
   app: FastifyInstance,
-  { store }: { store: DataStore },
+  { repository }: { repository: Repository },
 ): Promise<void> {
   app.get(
     "/api/deployment",
@@ -23,7 +23,7 @@ export async function registerChainRoutes(
       },
     },
     async (_request, reply) =>
-      sendData(reply, store.source, await store.deployment()),
+      sendData(reply, repository.source, await repository.deployment()),
   );
 
   app.get(
@@ -42,6 +42,6 @@ export async function registerChainRoutes(
       },
     },
     async (_request, reply) =>
-      sendData(reply, store.source, await store.syncStatus()),
+      sendData(reply, repository.source, await repository.syncStatus()),
   );
 }

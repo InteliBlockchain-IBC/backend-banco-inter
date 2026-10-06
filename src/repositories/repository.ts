@@ -12,9 +12,9 @@ import type {
 } from "../domain/views.js";
 
 /**
- * Contrato entre as rotas e a fonte de dados. `MockStore` (memória, usado nos
- * testes HTTP e em development sem banco) e `PgStore` (PostgreSQL) implementam
- * a mesma interface e devolvem os mesmos payloads (`src/views.ts`).
+ * Contrato entre as rotas e a fonte de dados. `InMemoryRepository` (memória, usado nos
+ * testes HTTP e em development sem banco) e `PgRepository` (PostgreSQL) implementam
+ * a mesma interface e devolvem os mesmos payloads (`src/domain/views.ts`).
  */
 
 export type DataSource = "mock" | "postgres";
@@ -64,7 +64,7 @@ export type SimulationResult = {
   operation: OperationView | null;
 };
 
-export interface DataStore {
+export interface Repository {
   /** Vai para `x-data-source` e `meta.source` de toda resposta 2xx. */
   readonly source: DataSource;
 

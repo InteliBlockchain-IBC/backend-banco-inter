@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { type OfferStatus, offerStatuses } from "../../domain/types.js";
 import { sendData, sendList } from "../reply.js";
-import type { DataStore } from "../../repositories/repository.js";
+import type { Repository } from "../../repositories/repository.js";
 import { ApiProblem } from "../errors.js";
 import {
   dataEnvelope,
@@ -126,7 +126,10 @@ const actions = [
 
 export async function registerOfferRoutes(
   app: FastifyInstance,
-  { store, enableIntents }: { store: DataStore; enableIntents: boolean },
+  {
+    repository,
+    enableIntents,
+  }: { repository: Repository; enableIntents: boolean },
 ): Promise<void> {
   app.get<{ Querystring: ListQuery }>(
     "/api/offers",
@@ -145,8 +148,8 @@ export async function registerOfferRoutes(
       const { limit, offset, role, status, wallet } = request.query;
       return sendList(
         reply,
-        store.source,
-        await store.listOffers(
+        repository.source,
+        await repository.listOffers(
           {
             role,
             ...(status === undefined ? {} : { status }),
@@ -174,7 +177,11 @@ export async function registerOfferRoutes(
       },
     },
     async (request, reply) =>
-      sendData(reply, store.source, await store.getOffer(request.params.id)),
+      sendData(
+        reply,
+        repository.source,
+        await repository.getOffer(request.params.id),
+      ),
   );
 
   app.get<{ Params: { id: string } }>(
@@ -194,7 +201,11 @@ export async function registerOfferRoutes(
       },
     },
     async (request, reply) =>
-      sendData(reply, store.source, await store.offerEvents(request.params.id)),
+      sendData(
+        reply,
+        repository.source,
+        await repository.offerEvents(request.params.id),
+      ),
   );
   if (!enableIntents) return;
 
@@ -236,8 +247,8 @@ export async function registerOfferRoutes(
     async (request, reply) =>
       sendData(
         reply,
-        store.source,
-        await store.createOfferIntent(
+        repository.source,
+        await repository.createOfferIntent(
           request.headers["x-wallet-address"],
           request.body,
         ),
@@ -265,8 +276,8 @@ export async function registerOfferRoutes(
       async (request, reply) =>
         sendData(
           reply,
-          store.source,
-          await store.offerActionIntent(
+          repository.source,
+          await repository.offerActionIntent(
             action,
             request.headers["x-wallet-address"],
             request.params.id,

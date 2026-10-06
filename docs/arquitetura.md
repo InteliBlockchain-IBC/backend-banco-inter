@@ -14,11 +14,22 @@ O objetivo da PoC é reduzir essa janela: o contrato inteligente valida o limite
 |---|---|---|---|
 | Runtime | Node.js 24 LTS, TypeScript estrito | API e testes executáveis (`package.json`, `.nvmrc`) | Java/Spring traz ecossistema corporativo maior, mas exige outra toolchain e mais configuração para esta PoC; Python/FastAPI facilita prototipagem, mas fragmentaria os tipos compartilhados com o cliente JS. Nenhum benchmark comparativo foi executado. |
 | HTTP | Fastify 5 com schemas e OpenAPI | Implementado em `src/app.ts` e `src/routes/` | Express tem ecossistema amplo, porém validação e OpenAPI precisariam de composição adicional nesta base. |
-| Persistência | PostgreSQL 16 no CI; `pg` e SQL versionado | Schema, runner, seed e `PgStore` (`src/db/`): **rotas leem e gravam no banco** com `DATABASE_URL`; testes de paridade, concorrência e prontidão em PostgreSQL real | SQLite simplificaria instalação local, mas não exercitaria as mesmas constraints, locks e transações previstas para a projeção compartilhada. Um ORM acrescentaria mapeamentos a revisar para `numeric(78,0)` e chaves compostas; SQL direto mantém esses invariantes explícitos. |
+| Persistência | PostgreSQL 16 no CI; `pg` e SQL versionado | Migrations, runner e seed (`src/database/`) e `PgRepository` (`src/repositories/postgres/`): **rotas leem e gravam no banco** com `DATABASE_URL`; testes de paridade, concorrência e prontidão em PostgreSQL real | SQLite simplificaria instalação local, mas não exercitaria as mesmas constraints, locks e transações previstas para a projeção compartilhada. Um ORM acrescentaria mapeamentos a revisar para `numeric(78,0)` e chaves compostas; SQL direto mantém esses invariantes explícitos. |
 | Rede | Sepolia (testnet) | Apenas endereços e eventos sintéticos em fixtures | Rede permissionada mudaria as premissas de finalização e infraestrutura; está fora da PoC. |
 | Leitura on-chain | `viem` candidato | **Não instalado**; listener/RPC/ABI pendentes | `ethers` é opção viável; escolher após validar ABI, suporte a logs e requisitos de replay. |
 
-Sem ORM e sem serviço de fila nesta etapa. `npm run db:setup` aplica as migrations e o seed ao `DATABASE_URL`; provas on-chain, autenticação e replay continuam fora do escopo da migration. As rotas dependem da interface `DataStore` (`src/store.ts`), implementada por `PgStore` (SQL parametrizado, transações, advisory lock nas escritas que leem-e-depois-gravam) e por `MockStore` (memória, para testes HTTP rápidos e desenvolvimento sem banco). Os dois montam o JSON pelo mesmo módulo (`src/views.ts`) e aplicam as mesmas regras de simulação (`src/mock/simulate.ts`).
+Sem ORM e sem serviço de fila nesta etapa. `npm run db:setup` aplica as migrations e o seed ao `DATABASE_URL`; provas on-chain, autenticação e replay continuam fora do escopo da migration. O código segue uma arquitetura em camadas, no estilo de Clean Architecture/hexagonal, dentro de um único serviço (monolito):
+
+| Camada | Pasta | Responsabilidade | Depende de |
+| --- | --- | --- | --- |
+| HTTP | `src/http/` | Rotas Fastify (papel de controllers), schemas JSON/OpenAPI, Problem Details e envelope de resposta | domínio, interface de repositório |
+| Domínio | `src/domain/` | Tipos e unidades do contrato DvP, regras puras (validação, transições, argumentos de evento) e montagem do payload | nada de HTTP ou banco* |
+| Repositórios | `src/repositories/` | Interface `Repository` e duas implementações: `PgRepository` (SQL parametrizado, transações, advisory lock nas escritas que leem antes de gravar) e `InMemoryRepository` (testes HTTP rápidos e desenvolvimento sem banco) | domínio |
+| Banco | `src/database/` | Runner de migrations e seed de demonstração | dados de `src/demo/` |
+
+As rotas conhecem só a interface `Repository`; `src/app.ts` escolhe a implementação pela presença de `DATABASE_URL`. As duas implementações montam o JSON pelo mesmo módulo (`domain/views.ts`) e aplicam as mesmas regras (`domain/rules.ts`), e um teste de paridade garante respostas idênticas.
+
+\* Exceção conhecida: as regras lançam `ApiProblem` (`http/errors.ts`), que já carrega o status HTTP. Separar erros de domínio dos códigos HTTP é um refinamento possível, não necessário para a PoC.
 
 ## Diagrama
 
