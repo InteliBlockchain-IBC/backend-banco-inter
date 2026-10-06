@@ -1,6 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { migrate } from "../src/db/migrate.js";
+import { migrate } from "../src/database/migrate.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const connectionString = process.env.DATABASE_URL;

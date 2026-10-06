@@ -11,7 +11,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { API_VERSION, buildApp } from "../src/app.js";
-import { mockOfferId, mockWallets } from "../src/mock/fixtures.js";
+import { mockOfferId, mockWallets } from "../src/demo/fixtures.js";
 
 // dist/scripts/export-docs.js -> raiz do repositório
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");

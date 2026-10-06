@@ -1,4 +1,4 @@
-import { seedDemo } from "../src/db/seed.js";
+import { seedDemo } from "../src/database/seed.js";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL não configurada");

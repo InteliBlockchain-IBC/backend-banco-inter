@@ -6,23 +6,23 @@ import Fastify, {
   type FastifyReply,
   type FastifyRequest,
 } from "fastify";
-import { PgStore } from "./db/pg-store.js";
-import { MockStore } from "./mock/store.js";
+import { PgStore } from "./repositories/postgres/pg-repository.js";
+import { MockStore } from "./repositories/in-memory/in-memory-repository.js";
 import {
   ApiProblem,
   createProblem,
   problemSchema,
   PROBLEM_BASE_URI,
-} from "./problem.js";
-import { registerChainRoutes } from "./routes/chain.js";
-import { registerCreditLimitRoutes } from "./routes/credit-limits.js";
-import { registerHealthRoutes } from "./routes/health.js";
-import { registerOfferRoutes } from "./routes/offers.js";
-import { registerSimulatedOfferRoutes } from "./routes/mock-offers.js";
-import { registerOperationRoutes } from "./routes/operations.js";
-import { registerTransactionRequestRoutes } from "./routes/transaction-requests.js";
-import { sharedSchemas } from "./schemas.js";
-import type { DataStore } from "./store.js";
+} from "./http/errors.js";
+import { registerChainRoutes } from "./http/routes/chain.js";
+import { registerCreditLimitRoutes } from "./http/routes/credit-limits.js";
+import { registerHealthRoutes } from "./http/routes/health.js";
+import { registerOfferRoutes } from "./http/routes/offers.js";
+import { registerSimulatedOfferRoutes } from "./http/routes/mock-offers.js";
+import { registerOperationRoutes } from "./http/routes/operations.js";
+import { registerTransactionRequestRoutes } from "./http/routes/transaction-requests.js";
+import { sharedSchemas } from "./http/schemas.js";
+import type { DataStore } from "./repositories/repository.js";
 
 export const API_VERSION = "0.4.0";
 

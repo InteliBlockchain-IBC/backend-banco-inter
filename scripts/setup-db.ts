@@ -1,7 +1,7 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { migrate } from "../src/db/migrate.js";
-import { seedDemo } from "../src/db/seed.js";
+import { migrate } from "../src/database/migrate.js";
+import { seedDemo } from "../src/database/seed.js";
 
 /**
  * Prepara o banco em um passo: aplica as migrations e, conforme SEED_DEMO,
