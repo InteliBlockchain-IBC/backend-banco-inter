@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:16
+        image: docker.io/library/postgres:16
         # Evita o limite de pulls anônimos do Docker Hub nos runners do GitHub.
         credentials:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
