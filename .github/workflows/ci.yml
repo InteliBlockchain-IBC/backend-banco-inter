@@ -34,6 +34,10 @@ jobs:
     services:
       postgres:
         image: postgres:16
+        # Evita o limite de pulls anônimos do Docker Hub nos runners do GitHub.
+        credentials:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
         env:
           POSTGRES_USER: inter_test
           POSTGRES_PASSWORD: inter_test_only
