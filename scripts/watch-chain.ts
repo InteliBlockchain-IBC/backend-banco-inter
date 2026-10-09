@@ -7,7 +7,9 @@ const required = (key: string) => {
 };
 const intervalText = process.env.CHAIN_SYNC_INTERVAL_MS ?? "15000";
 if (!/^[0-9]+$/.test(intervalText) || Number(intervalText) < 1_000)
-  throw new Error("CHAIN_SYNC_INTERVAL_MS deve ser um inteiro de ao menos 1000.");
+  throw new Error(
+    "CHAIN_SYNC_INTERVAL_MS deve ser um inteiro de ao menos 1000.",
+  );
 const options = {
   databaseUrl: required("DATABASE_URL"),
   rpcUrl: required("SEPOLIA_RPC_URL"),
