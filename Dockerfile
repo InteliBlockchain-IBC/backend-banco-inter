@@ -20,6 +20,10 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist/src ./dist/src
+# setup-db.js (migrations + seed) roda no serviço `setup` do compose e no
+# comando de pré-deploy; as migrations são lidas de /app/migrations.
+COPY --from=build /app/dist/scripts ./dist/scripts
+COPY migrations ./migrations
 
 USER node
 EXPOSE 3000

@@ -2,7 +2,7 @@ import type { TestContext } from "node:test";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
 
-export { mockOfferId, mockWallets } from "../src/mock/fixtures.js";
+export { mockOfferId, mockWallets } from "../src/demo/fixtures.js";
 
 export const START = new Date("2026-09-29T12:00:00.000Z");
 

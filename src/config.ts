@@ -11,7 +11,14 @@ const decimalInteger = /^[0-9]+$/;
  */
 const hostPattern = /^[A-Za-z0-9._:-]+$/;
 
+const databaseUrlPattern = /^postgres(?:ql)?:\/\/\S+$/;
+
 export type AppConfig = Readonly<{
+  /**
+   * Conexão do PostgreSQL. Ausente em development/test, a API usa o store em
+   * memória (`x-data-source: mock`); em production ela é obrigatória.
+   */
+  databaseUrl?: string;
   host: string;
   nodeEnv: "development" | "production" | "test";
   port: number;
@@ -59,7 +66,21 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
     );
   }
 
+  const databaseUrl = env.DATABASE_URL?.trim() || undefined;
+  if (databaseUrl !== undefined && !databaseUrlPattern.test(databaseUrl)) {
+    // A mensagem não ecoa o valor: ele costuma carregar a senha.
+    throw new ConfigurationError(
+      "DATABASE_URL deve ser uma URL postgres:// ou postgresql://.",
+    );
+  }
+  if (databaseUrl === undefined && nodeEnv === "production") {
+    throw new ConfigurationError(
+      "DATABASE_URL é obrigatória em production; os dados fictícios em memória só existem em development/test.",
+    );
+  }
+
   return Object.freeze({
+    ...(databaseUrl === undefined ? {} : { databaseUrl }),
     host,
     nodeEnv: nodeEnv as AppConfig["nodeEnv"],
     port,
