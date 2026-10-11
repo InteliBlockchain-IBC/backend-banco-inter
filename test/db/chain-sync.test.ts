@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { encodeEventTopics, type Hex } from "viem";
@@ -18,7 +19,6 @@ import {
   happyPath,
   isolatedDatabase,
   LENDER,
-  LOCK,
   options,
   POSITION,
   rejectsWith,
@@ -461,21 +461,29 @@ test("a dropped PostgreSQL socket rejects the pass instead of killing the proces
 }, async (t) => {
   const url = await isolatedDatabase(t);
   const admin = await connect(t, url);
+  // Só a conexão deste teste: o advisory lock é global e outros arquivos
+  // rodam listeners em paralelo no mesmo banco.
+  const tag = `chain-sync-${randomUUID().slice(0, 8)}`;
+  const tagged = new URL(url);
+  tagged.searchParams.set("application_name", tag);
   const chain = new FakeChain();
   happyPath(chain);
   // Enquanto o listener espera o RPC com a transação aberta, o servidor
-  // derruba a conexão dele (identificada pelo advisory lock que segura).
+  // derruba a conexão dele.
+  let terminated = 0;
   chain.onGetLogs = async () => {
-    await admin.query(
-      "SELECT pg_terminate_backend(pid) FROM pg_locks WHERE locktype = 'advisory' AND objid = $1 AND granted",
-      [LOCK],
+    const { rowCount } = await admin.query(
+      "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name = $1",
+      [tag],
     );
+    terminated += rowCount ?? 0;
     await delay(200);
   };
   await assert.rejects(
-    syncChain(options(url, chain)),
+    syncChain(options(tagged.toString(), chain)),
     /Conexão com o PostgreSQL perdida/,
   );
+  assert.equal(terminated, 1);
   chain.onGetLogs = undefined;
   assert.equal(await syncAll(options(url, chain)), 6);
 });

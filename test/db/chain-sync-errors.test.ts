@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 import type pg from "pg";
 import { safeChainErrorMessage } from "../../src/blockchain/logging.js";
@@ -223,20 +225,43 @@ for (const call of ["getChainId", "getBlockNumber", "getLogs"] as const) {
     skip,
   }, async (t) => {
     const url = await isolatedDatabase(t);
+    // Marca as conexões deste teste: os arquivos rodam em paralelo no CI e
+    // outro teste pode ter um listener conectado ao mesmo banco agora.
+    const tag = `chain-sync-${randomUUID().slice(0, 8)}`;
+    const tagged = new URL(url);
+    tagged.searchParams.set("application_name", tag);
+    const listenerUrl = tagged.toString();
     const chain = new FakeChain();
     happyPath(chain);
     chain.failing.add(call);
     for (let attempt = 0; attempt < 5; attempt++)
-      await assert.rejects(syncChain(options(url, chain)), /failed/);
+      await assert.rejects(syncChain(options(listenerUrl, chain)), /failed/);
     const db = await connect(t, url);
     assert.deepEqual(await counts(db), NOTHING);
-    const open = await db.query(
-      "SELECT count(*) AS n FROM pg_stat_activity WHERE application_name = 'chain-sync'",
-    );
-    assert.equal(open.rows[0]?.n, "0");
+    const openConnections = async () =>
+      (
+        await db.query(
+          "SELECT count(*) AS n FROM pg_stat_activity WHERE application_name = $1",
+          [tag],
+        )
+      ).rows[0]?.n;
+    // O backend some do pg_stat_activity logo depois do end(), não no mesmo
+    // instante: espera um pouco antes de acusar vazamento.
+    let open = await openConnections();
+    for (let wait = 0; open !== "0" && wait < 50; wait++) {
+      await delay(100);
+      open = await openConnections();
+    }
+    assert.equal(open, "0", "conexão do listener ficou aberta");
 
+    // O filtro enxerga a conexão do listener enquanto ela existe.
+    let duringPass: string | undefined;
     chain.failing.delete(call);
-    assert.equal(await syncAll(options(url, chain)), 6);
+    chain.onGetLogs = async () => {
+      duringPass ??= await openConnections();
+    };
+    assert.equal(await syncAll(options(listenerUrl, chain)), 6);
+    assert.equal(duringPass, "1");
   });
 }
 

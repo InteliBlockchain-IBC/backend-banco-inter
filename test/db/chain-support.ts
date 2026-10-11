@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import type { TestContext } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import {
@@ -13,7 +12,6 @@ import {
   type Hash,
   type Hex,
 } from "viem";
-import { buildApp } from "../../src/app.js";
 import { creditInterbankOfferAbi } from "../../src/blockchain/abi.js";
 import {
   type ChainReader,
@@ -22,8 +20,6 @@ import {
   syncChain,
 } from "../../src/blockchain/sync.js";
 import { migrate } from "../../src/database/migrate.js";
-import { seedDemo } from "../../src/database/seed.js";
-import { START } from "../support.js";
 
 /**
  * Apoio aos testes do listener. Integração real: PostgreSQL de TEST_DATABASE_URL (um schema
