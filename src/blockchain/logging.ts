@@ -28,6 +28,19 @@ export function secretsFromEnv(env: NodeJS.ProcessEnv = process.env) {
 }
 
 /**
+ * Primeiro rótulo de um host com nome (`apiKey123` em
+ * `apiKey123.rpc.provider.example`): é onde provedores põem a chave ou o
+ * nome do endpoint, e ele pode aparecer sozinho numa mensagem. Os demais
+ * rótulos (domínio do provedor, "sepolia"...) não são segredo e ficam. IPs
+ * não têm rótulo próprio.
+ */
+function subdomainOf(hostname: string) {
+  const labels = hostname.split(".");
+  const named = !hostname.startsWith("[") && /[a-z]/iu.test(hostname);
+  return named && labels.length >= 2 ? (labels[0] ?? "") : "";
+}
+
+/**
  * Partes de uma URL secreta que identificam a credencial mesmo fora da URL:
  * host, usuário, senha, segmentos do path e valores da query string. Um erro
  * de DNS, por exemplo, cita só o host (provedores que põem a chave no
@@ -41,14 +54,16 @@ function fragmentsOf(secret: string): string[] {
     const parts = [
       url.host,
       url.hostname,
+      subdomainOf(url.hostname),
       url.username,
       url.password,
       ...url.pathname.split("/"),
       ...[...url.searchParams.values()].map(encodeURIComponent),
     ];
-    // A credencial pode aparecer codificada (p%40ss) ou decodificada (p@ss).
+    // A credencial pode aparecer como está na URL (p%40ss), decodificada
+    // (p@ss) ou codificada de novo, quando a URL inteira vira parâmetro.
     for (const part of parts) {
-      fragments.push(part);
+      fragments.push(part, encodeURIComponent(part));
       try {
         fragments.push(decodeURIComponent(part));
       } catch {
