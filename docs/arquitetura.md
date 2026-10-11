@@ -56,17 +56,17 @@ O operador assina transações na carteira; o backend não guarda chaves nem tra
 
 Consultas e histórico no PostgreSQL (ou em memória, sem `DATABASE_URL` em development/test); comandos DvP sintéticos sob `/api/mock` e intenções de assinatura sob `/api` só em `development`/`test`. Em `production`, nenhum POST é registrado. O cabeçalho de carteira é autodeclarado e não concede autorização.
 
-### Listener (não implementado)
+### Listener (implementado, `src/blockchain/`)
 
-Deverá ler logs por intervalo de blocos, persistir eventos e projeções com cursor e tratar reorg. `GET /api/sync-status` expõe apenas um cursor sintético por enquanto.
+`chain:watch` lê logs do contrato em lotes de até 10 blocos, com 12 confirmações, e grava eventos, ofertas, liquidações, limites, histórico e cursor numa transação por lote. Antes de cada passe confere o chain ID do RPC e se o bloco do cursor ainda é canônico; cada log precisa vir do bloco canônico do seu número. Divergência, evento de oferta órfão ou limite inconsistente desfazem o lote e param o cursor (falha fechada, com `code` no log). A reversão automática de reorg fica para uma próxima entrega. Detalhes no README, seção "Listener Sepolia".
 
 ### PostgreSQL (integrado à API)
 
-As dez tabelas de domínio e `schema_migrations` são criadas pelas migrations versionadas (`001_initial_schema.sql`, `002_institution_wallets.sql`), aplicadas pelo runner (`setup` no compose). Uma instituição opera várias carteiras (`institution_wallets`); cadastro e limite on-chain são por carteira (`contract_wallet_state`). A API lê todas e grava ofertas, eventos, liquidações, limites, histórico, cursor e intenções. `/ready` executa `SELECT 1` e responde 503 se o banco cair; em `production` o servidor não sobe sem `DATABASE_URL`. Quando o listener existir, ele passará a ser o escritor da projeção, sujeito a replay e correção de reorg.
+As dez tabelas de domínio e `schema_migrations` são criadas pelas migrations versionadas (`001_initial_schema.sql`, `002_institution_wallets.sql`, `003_deployment_source.sql`), aplicadas pelo runner (`setup` no compose). Uma instituição opera várias carteiras (`institution_wallets`); cadastro e limite on-chain são por carteira (`contract_wallet_state`). A API lê todas e grava ofertas, eventos, liquidações, limites, histórico, cursor e intenções. `/ready` executa `SELECT 1` e responde 503 se o banco cair; em `production` o servidor não sobe sem `DATABASE_URL`. Quando o listener existir, ele passará a ser o escritor da projeção, sujeito a replay e correção de reorg.
 
 ### RPC provider
 
-Um provedor Sepolia poderá atender o frontend e o futuro listener; o backend não configura nem usa RPC atualmente.
+O listener usa um endpoint HTTP da Sepolia (`SEPOLIA_RPC_URL`), só para leitura. A URL carrega a chave do provedor e nunca aparece em log.
 
 ### Contratos (Solidity/Foundry)
 

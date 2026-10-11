@@ -74,7 +74,10 @@ export async function registerSimulatedOfferRoutes(
         description:
           "Cria uma oferta e um evento sintéticos na fonte de dados ativa (PostgreSQL ou memória). lenderWallet não autentica ninguém; não envia transação nem transfere ativos.",
         operationId: "simulateOffer",
-        response: { 201: simulatedResponse, ...errorResponses(400, 422, 503) },
+        response: {
+          201: simulatedResponse,
+          ...errorResponses(400, 409, 422, 503),
+        },
         summary: "Simular criação de oferta",
         tags: ["simulação"],
       },

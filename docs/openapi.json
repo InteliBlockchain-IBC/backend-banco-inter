@@ -2269,6 +2269,16 @@
               }
             }
           },
+          "409": {
+            "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Erro no formato RFC 9457 (Problem Details), servido como application/problem+json.",
             "content": {

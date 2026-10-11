@@ -10,7 +10,9 @@ import { createFixtures } from "../demo/fixtures.js";
  * - `if-empty` (padrão): só grava se ainda não existir deployment. Seguro para
  *   rodar a cada `docker compose up`.
  * - `reset`: apaga os dados da projeção (não o esquema) e grava de novo, com
- *   horários renovados. Útil antes de uma demonstração.
+ *   horários renovados. Útil antes de uma demonstração. Se o listener já
+ *   registrou o contrato real, só o deployment sintético é apagado: a
+ *   projeção da Sepolia não precisa ser ressincronizada do bloco inicial.
  */
 export type SeedMode = "if-empty" | "reset";
 export type SeedResult = { seeded: boolean; offers: number };
@@ -28,6 +30,13 @@ const DATA_TABLES = [
   "institutions",
 ];
 
+/** Tabelas por deployment, em ordem segura para as chaves estrangeiras. */
+const DEPLOYMENT_TABLES = DATA_TABLES.filter(
+  (table) => !["institution_wallets", "institutions"].includes(table),
+);
+const SEED_SCOPE = `(chain_id, contract_address) IN
+  (SELECT chain_id, contract_address FROM contract_deployments WHERE source = 'seed')`;
+
 /** Trava distinta da migration: seed e migration não disputam a mesma chave. */
 const SEED_LOCK = 724182915;
 
@@ -43,7 +52,18 @@ export async function seedDemo(
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock($1)", [SEED_LOCK]);
     if (mode === "reset") {
-      await client.query(`TRUNCATE ${DATA_TABLES.join(", ")}`);
+      const listener = await client.query(
+        "SELECT 1 FROM contract_deployments WHERE source = 'listener' LIMIT 1",
+      );
+      if (listener.rows.length === 0) {
+        await client.query(`TRUNCATE ${DATA_TABLES.join(", ")}`);
+      } else {
+        for (const table of DEPLOYMENT_TABLES)
+          await client.query(`DELETE FROM ${table} WHERE ${SEED_SCOPE}`);
+        // Cadastro off-chain: hoje só o seed o preenche.
+        await client.query("DELETE FROM institution_wallets");
+        await client.query("DELETE FROM institutions");
+      }
     } else {
       const { rows } = await client.query(
         "SELECT 1 FROM contract_deployments LIMIT 1",

@@ -62,6 +62,7 @@ test("migrations apply the schema once and serialize simultaneous runners", {
   assert.deepEqual(history.rows.map((row) => row.name).sort(), [
     "001_initial_schema.sql",
     "002_institution_wallets.sql",
+    "003_deployment_source.sql",
   ]);
   for (const row of history.rows) {
     assert.match(row.checksum, /^[a-f0-9]{64}$/);
@@ -72,16 +73,17 @@ test("migrations apply the schema once and serialize simultaneous runners", {
   for (const name of [
     "001_initial_schema.sql",
     "002_institution_wallets.sql",
+    "003_deployment_source.sql",
   ]) {
     await cp(resolve(migrationsDir, name), resolve(scratch, name));
   }
   await writeFile(
-    resolve(scratch, "003_probe.sql"),
+    resolve(scratch, "004_probe.sql"),
     "CREATE TABLE migration_probe (id integer PRIMARY KEY);\n",
   );
   await migrate(url.toString(), scratch);
   await writeFile(
-    resolve(scratch, "004_invalid.sql"),
+    resolve(scratch, "005_invalid.sql"),
     "CREATE TABLE must_roll_back (id integer);\nSELECT * FROM table_that_does_not_exist;\n",
   );
   await assert.rejects(migrate(url.toString(), scratch));
@@ -90,19 +92,24 @@ test("migrations apply the schema once and serialize simultaneous runners", {
   );
   assert.deepEqual(
     rolledBack.rows.map((row) => row.name),
-    ["001_initial_schema.sql", "002_institution_wallets.sql", "003_probe.sql"],
+    [
+      "001_initial_schema.sql",
+      "002_institution_wallets.sql",
+      "003_deployment_source.sql",
+      "004_probe.sql",
+    ],
   );
   const absent = await db.query<{ table_name: string | null }>(
     "SELECT to_regclass('must_roll_back')::text AS table_name",
   );
   assert.equal(absent.rows[0]?.table_name, null);
   await writeFile(
-    resolve(scratch, "004_invalid.sql"),
+    resolve(scratch, "005_invalid.sql"),
     "CREATE TABLE after_repair (id integer);\n",
   );
   await migrate(url.toString(), scratch);
   await writeFile(
-    resolve(scratch, "003_probe.sql"),
+    resolve(scratch, "004_probe.sql"),
     "CREATE TABLE migration_probe (id bigint PRIMARY KEY);\n",
   );
   await assert.rejects(
@@ -119,7 +126,7 @@ test("migrations apply the schema once and serialize simultaneous runners", {
   );
   assert.equal(preflight.rows[0]?.name, null);
   await writeFile(
-    resolve(scratch, "003_probe.sql"),
+    resolve(scratch, "004_probe.sql"),
     "CREATE TABLE migration_probe (id integer PRIMARY KEY);\n",
   );
   await assert.rejects(migrate(url.toString(), scratch), /fora de ordem/i);
@@ -175,6 +182,7 @@ test("002 moves wallet ownership out of the per-contract state without losing li
 
   assert.deepEqual(await migrate(url.toString(), resolve(ROOT, "migrations")), [
     "002_institution_wallets.sql",
+    "003_deployment_source.sql",
   ]);
   const links = await db.query(
     "SELECT wallet_address, institution_id FROM institution_wallets",
