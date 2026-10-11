@@ -1,6 +1,22 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import {
+  actionEventArgs,
+  actionOutcome,
+  blockTime,
+  offerCreatedArgs,
+  offerExpiry,
+  offerSettledArgs,
+  parseAmount,
+  parseCounterparties,
+  requireActionable,
+  requireLimit,
+  requireRegisteredWallet,
+  type SimulatedAction,
+  type SimulatedOfferInput,
+  syntheticHash,
+} from "../../domain/rules.js";
+import {
   type Address,
   type ChainEventName,
   type ChainEventRecord,
@@ -18,33 +34,6 @@ import {
   type WalletState,
 } from "../../domain/types.js";
 import {
-  actionEventArgs,
-  actionOutcome,
-  blockTime,
-  offerCreatedArgs,
-  offerExpiry,
-  offerSettledArgs,
-  parseAmount,
-  parseCounterparties,
-  requireActionable,
-  requireLimit,
-  requireRegisteredWallet,
-  type SimulatedAction,
-  type SimulatedOfferInput,
-  syntheticHash,
-} from "../../domain/rules.js";
-import { problems } from "../../http/errors.js";
-import {
-  type CreditLimitFilter,
-  type Repository,
-  type OfferFilter,
-  type OfferIntentInput,
-  type OfferView,
-  type Page,
-  REQUEST_TTL_MS,
-  type SimulationResult,
-} from "../repository.js";
-import {
   creditLimitChangeView,
   creditLimitView,
   deploymentView,
@@ -58,6 +47,17 @@ import {
   syncStatusView,
   type ViewContext,
 } from "../../domain/views.js";
+import { problems } from "../../http/errors.js";
+import {
+  type CreditLimitFilter,
+  type OfferFilter,
+  type OfferIntentInput,
+  type OfferView,
+  type Page,
+  REQUEST_TTL_MS,
+  type Repository,
+  type SimulationResult,
+} from "../repository.js";
 
 /**
  * Fonte de dados PostgreSQL. Lê e grava a projeção de `migrations/` para o

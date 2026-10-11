@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { sendData, sendList } from "../reply.js";
 import type { Repository } from "../../repositories/repository.js";
+import { sendData, sendList } from "../reply.js";
 import {
   dataEnvelope,
   errorResponses,

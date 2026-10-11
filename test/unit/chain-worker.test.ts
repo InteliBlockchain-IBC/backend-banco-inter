@@ -5,7 +5,11 @@ import type {
   ChainSyncOptions,
   ChainSyncResult,
 } from "../../src/blockchain/sync.js";
-import { MAX_BACKOFF_MS, runChainWorker } from "../../src/blockchain/worker.js";
+import {
+  MAX_BACKOFF_MS,
+  retryDelay,
+  runChainWorker,
+} from "../../src/blockchain/worker.js";
 
 const env = {
   BRL_TOKEN_ADDRESS: "0x00000000000000000000000000000000000000b1",
@@ -117,4 +121,145 @@ test("a failure is logged with its code and the worker keeps going", async () =>
   );
   assert.doesNotMatch(lines.join(""), /chave-secreta/);
   assert.ok(MAX_BACKOFF_MS >= 60_000);
+});
+
+test("configuration boundaries", () => {
+  const ok = (extra: Record<string, string>) =>
+    chainWorkerConfigFromEnv({ ...env, ...extra });
+  assert.equal(ok({ CHAIN_SYNC_CONFIRMATIONS: "0" }).options.confirmations, 0);
+  assert.equal(
+    ok({ CREDIT_INTERBANK_OFFER_START_BLOCK: "0" }).options.startBlock,
+    0,
+  );
+  assert.equal(ok({ CHAIN_SYNC_INTERVAL_MS: "1000" }).intervalMs, 1000);
+  assert.equal(
+    ok({ CREDIT_INTERBANK_OFFER_START_BLOCK: " 123 " }).options.startBlock,
+    123,
+  );
+  assert.equal(
+    ok({ SEPOLIA_RPC_URL: "http://127.0.0.1:8545" }).options.rpcUrl,
+    "http://127.0.0.1:8545",
+  );
+  // Endereço com checksum EIP-55 válido também é aceito.
+  ok({
+    CREDIT_INTERBANK_OFFER_ADDRESS:
+      "0x2401d88D300dD2CEdB83337bba9Ba29E7269079A",
+  });
+  for (const [key, value] of [
+    ["CHAIN_SYNC_INTERVAL_MS", "999"],
+    ["CHAIN_SYNC_CONFIRMATIONS", "1.5"],
+    ["CHAIN_SYNC_CONFIRMATIONS", "doze"],
+    ["CREDIT_INTERBANK_OFFER_START_BLOCK", "-1"],
+    ["CREDIT_INTERBANK_OFFER_START_BLOCK", "1e6"],
+    ["BRL_TOKEN_ADDRESS", "0xZZ00000000000000000000000000000000000000"],
+    ["CDI_POSITION_TOKEN_ADDRESS", "não é endereço"],
+    ["SEPOLIA_RPC_URL", "rpc.example.invalid"],
+  ] as const)
+    assert.throws(
+      () => ok({ [key]: value }),
+      new RegExp(key),
+      `${key}=${value}`,
+    );
+});
+
+test("missing configuration lists every required variable at once", () => {
+  assert.throws(
+    () => chainWorkerConfigFromEnv({}),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      for (const key of Object.keys(env))
+        assert.match(error.message, new RegExp(`${key} não configurada`));
+      return true;
+    },
+  );
+});
+
+test("backoff doubles and is capped", () => {
+  assert.deepEqual(
+    [1, 2, 3, 4].map((failures) => retryDelay(15_000, failures)),
+    [15_000, 30_000, 60_000, 120_000],
+  );
+  assert.equal(retryDelay(15_000, 50), MAX_BACKOFF_MS);
+  assert.equal(retryDelay(15_000, 0), 15_000);
+  assert.equal(retryDelay(10 * MAX_BACKOFF_MS, 1), MAX_BACKOFF_MS);
+});
+
+test("a success resets the consecutive failure count", async () => {
+  const controller = new AbortController();
+  const outcomes: Array<"fail" | "ok"> = ["fail", "fail", "ok", "fail"];
+  const failures: number[] = [];
+  await runChainWorker({
+    intervalMs: 1,
+    options: {} as ChainSyncOptions,
+    signal: controller.signal,
+    sync: async () => {
+      const next = outcomes.shift();
+      if (next === undefined) {
+        controller.abort();
+        return result(true);
+      }
+      if (next === "fail") throw "falha sem Error";
+      return result(true);
+    },
+    write: (stream, line) => {
+      if (stream === "stderr")
+        failures.push(JSON.parse(line).consecutiveFailures);
+    },
+  });
+  assert.deepEqual(failures, [1, 2, 1]);
+});
+
+test("aborting stops the worker during the wait and before the first pass", async () => {
+  const controller = new AbortController();
+  let calls = 0;
+  const started = Date.now();
+  const running = runChainWorker({
+    intervalMs: 60_000,
+    options: {} as ChainSyncOptions,
+    signal: controller.signal,
+    sync: async () => {
+      calls += 1;
+      return result(true);
+    },
+    write: () => undefined,
+  });
+  setTimeout(() => controller.abort(), 30);
+  await running;
+  assert.equal(calls, 1);
+  assert.ok(Date.now() - started < 5_000);
+
+  const aborted = new AbortController();
+  aborted.abort();
+  await runChainWorker({
+    intervalMs: 1,
+    options: {} as ChainSyncOptions,
+    signal: aborted.signal,
+    sync: async () => {
+      calls += 1;
+      return result(true);
+    },
+  });
+  assert.equal(calls, 1);
+});
+
+test("successful passes are logged as info lines with the batch result", async () => {
+  const controller = new AbortController();
+  const lines: string[] = [];
+  await runChainWorker({
+    intervalMs: 1,
+    options: {} as ChainSyncOptions,
+    signal: controller.signal,
+    sync: async () => {
+      controller.abort();
+      return { ...result(true), indexed: 3 };
+    },
+    write: (stream, line) => lines.push(`${stream}:${line}`),
+  });
+  assert.equal(lines.length, 1);
+  assert.ok(lines[0]?.startsWith("stdout:"));
+  assert.deepEqual(JSON.parse(lines[0]?.slice(7) ?? "{}"), {
+    level: "info",
+    ...result(true),
+    indexed: 3,
+  });
 });

@@ -12,8 +12,10 @@ export const SECRET_ENV_KEYS = [
   "TEST_DATABASE_URL",
 ] as const;
 
-// Qualquer esquema (http, https, ws, wss, postgres, postgresql, ...).
-const URL_PATTERN = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'`<>)}\]]+/giu;
+// Qualquer esquema (http, https, ws, wss, postgres, postgresql, ...). Um host
+// IPv6 entre colchetes ([::1]) faz parte da URL; fora dele, `]` a encerra.
+const URL_PATTERN =
+  /\b[a-z][a-z0-9+.-]*:\/\/(?:\[[^\]\s]*\]|[^\s"'`<>)}\]])+/giu;
 // Trechos de uma URL secreta curtos demais não são substituídos isoladamente:
 // trocariam palavras comuns da mensagem sem proteger nada.
 const MIN_FRAGMENT = 6;
@@ -34,12 +36,21 @@ function fragmentsOf(secret: string): string[] {
   const fragments = [secret];
   try {
     const url = new URL(secret);
-    fragments.push(
-      decodeURIComponent(url.username),
-      decodeURIComponent(url.password),
-      ...url.pathname.split("/").map((part) => decodeURIComponent(part)),
-      ...[...url.searchParams.values()],
-    );
+    const parts = [
+      url.username,
+      url.password,
+      ...url.pathname.split("/"),
+      ...[...url.searchParams.values()].map(encodeURIComponent),
+    ];
+    // A credencial pode aparecer codificada (p%40ss) ou decodificada (p@ss).
+    for (const part of parts) {
+      fragments.push(part);
+      try {
+        fragments.push(decodeURIComponent(part));
+      } catch {
+        // Sequência % inválida: fica só a forma original.
+      }
+    }
   } catch {
     // Não é URL: o valor inteiro já está na lista.
   }

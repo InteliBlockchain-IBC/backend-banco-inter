@@ -19,6 +19,10 @@ export type ChainWorkerOptions = Readonly<{
 /** Espera máxima entre tentativas depois de falhas seguidas. */
 export const MAX_BACKOFF_MS = 5 * 60_000;
 
+/** Espera antes da próxima tentativa: dobra a cada falha, até MAX_BACKOFF_MS. */
+export const retryDelay = (intervalMs: number, failures: number) =>
+  Math.min(intervalMs * 2 ** Math.max(failures - 1, 0), MAX_BACKOFF_MS);
+
 const defaultWrite = (stream: "stdout" | "stderr", line: string) =>
   (stream === "stdout" ? console.log : console.error)(line);
 
@@ -45,7 +49,7 @@ export async function runChainWorker({
       if (!result.caughtUp) wait = 0;
     } catch (error) {
       failures += 1;
-      wait = Math.min(intervalMs * 2 ** (failures - 1), MAX_BACKOFF_MS);
+      wait = retryDelay(intervalMs, failures);
       write(
         "stderr",
         JSON.stringify({

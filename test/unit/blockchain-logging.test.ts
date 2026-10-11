@@ -84,3 +84,73 @@ test("structured error logs carry the sync error code", () => {
     message: "falha",
   });
 });
+
+test("handles thrown values that are not Error instances", () => {
+  assert.equal(
+    safeChainErrorMessage(
+      `falhou em https://rpc.example.invalid/v2/${KEY}`,
+      [],
+    ),
+    "falhou em https://rpc.example.invalid/[redacted]",
+  );
+  assert.equal(safeChainErrorMessage(undefined, []), "undefined");
+  assert.equal(safeChainErrorMessage(42, []), "42");
+  assert.doesNotMatch(
+    safeChainErrorMessage({ toString: () => `wss://x.invalid/${KEY}` }, []),
+    new RegExp(KEY),
+  );
+});
+
+test("redacts a percent-encoded password in both encoded and decoded form", () => {
+  const db = "postgresql://operador:p%40ss-word-longa@db.example.invalid/x";
+  const text = "auth p%40ss-word-longa | auth p@ss-word-longa";
+  const redacted = redactSecrets(text, [db]);
+  assert.doesNotMatch(redacted, /ss-word-longa/);
+});
+
+test("keeps host and port, including IPv6, and trailing punctuation", () => {
+  assert.equal(
+    redactSecrets(`(https://rpc.example.invalid:8545/v2/${KEY}).`, []),
+    "(https://rpc.example.invalid:8545/[redacted]).",
+  );
+  assert.equal(
+    redactSecrets(`em http://[::1]:8545/${KEY}`, []),
+    "em http://[::1]:8545/[redacted]",
+  );
+  assert.equal(
+    redactSecrets(`HTTPS://RPC.EXAMPLE.INVALID/v2/${KEY}`, []),
+    "https://rpc.example.invalid/[redacted]",
+  );
+});
+
+test("redacts every occurrence and secrets with regex characters", () => {
+  const secret = "token+com.(regex)*chars?";
+  const text = `a ${secret} b ${secret} c https://x.invalid/${KEY} https://y.invalid/${KEY}`;
+  const redacted = redactSecrets(text, [secret]);
+  assert.doesNotMatch(redacted, /regex/);
+  assert.doesNotMatch(redacted, new RegExp(KEY));
+  assert.equal(redacted.match(/\[redacted\]/g)?.length, 4);
+});
+
+test("short URL parts are not redacted on their own", () => {
+  // "v2", "u" e "db" sozinhos não são segredo e apagá-los destruiria a mensagem.
+  const redacted = redactSecrets("erro v2 do usuario u no db", [
+    "postgresql://u:senha-longa-123@db/x",
+    `https://rpc.example.invalid/v2/${KEY}`,
+  ]);
+  assert.equal(redacted, "erro v2 do usuario u no db");
+});
+
+test("the error cause is never logged, only the sanitized message", () => {
+  const error = new Error("falha na consulta", {
+    cause: new Error(`https://rpc.example.invalid/v2/${KEY}`),
+  });
+  const line = chainErrorLog(error, "falha", []);
+  assert.doesNotMatch(JSON.stringify(line), new RegExp(KEY));
+  assert.equal(line.error, "falha na consulta");
+});
+
+test("a non-string error code is left out of the log line", () => {
+  const error = Object.assign(new Error("x"), { code: 503 });
+  assert.equal("code" in chainErrorLog(error, "falha", []), false);
+});

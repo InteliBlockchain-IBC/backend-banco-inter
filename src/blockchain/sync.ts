@@ -238,6 +238,12 @@ export async function syncChain(
         log.transactionHash === null
       )
         throw new ChainSyncError("INVALID_LOG", "Log RPC sem posição canônica");
+      // O RPC marca como `removed` um log cujo bloco saiu da chain canônica.
+      if (log.removed)
+        throw new ChainSyncError(
+          "CHAIN_REORG",
+          `Log removido pelo RPC (reorg) na tx ${log.transactionHash}, bloco ${log.blockNumber}.`,
+        );
       const block = await canonicalBlock(log.blockNumber, log.blockHash);
       const blockTime = new Date(Number(block.timestamp) * 1000);
       const where = `tx ${log.transactionHash}, bloco ${log.blockNumber}, log ${log.logIndex}`;
