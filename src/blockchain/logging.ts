@@ -29,14 +29,18 @@ export function secretsFromEnv(env: NodeJS.ProcessEnv = process.env) {
 
 /**
  * Partes de uma URL secreta que identificam a credencial mesmo fora da URL:
- * usuário, senha, segmentos do path e valores da query string. Um erro de DNS,
- * por exemplo, pode citar só o host; um log de requisição, só o path.
+ * host, usuário, senha, segmentos do path e valores da query string. Um erro
+ * de DNS, por exemplo, cita só o host (provedores que põem a chave no
+ * subdomínio); um log de requisição, só o path. O host do RPC também some do
+ * log: é o preço de não vazar uma chave no subdomínio.
  */
 function fragmentsOf(secret: string): string[] {
   const fragments = [secret];
   try {
     const url = new URL(secret);
     const parts = [
+      url.host,
+      url.hostname,
       url.username,
       url.password,
       ...url.pathname.split("/"),
@@ -56,6 +60,9 @@ function fragmentsOf(secret: string): string[] {
   }
   return fragments.filter((part) => part.length >= MIN_FRAGMENT);
 }
+
+const escapeRegExp = (text: string) =>
+  text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
 function maskUrl(url: string) {
   try {
@@ -79,8 +86,13 @@ export function redactSecrets(
     // Mais longos primeiro: a URL inteira antes de um segmento dela.
     .sort((a, b) => b.length - a.length);
   let result = text;
+  // Sem diferenciar maiúsculas: new URL() normaliza o host para minúsculas,
+  // mas a mensagem de erro pode trazer a grafia original (apiKey123.rpc...).
   for (const fragment of fragments)
-    result = result.split(fragment).join("[redacted]");
+    result = result.replace(
+      new RegExp(escapeRegExp(fragment), "giu"),
+      "[redacted]",
+    );
   return result.replace(URL_PATTERN, maskUrl);
 }
 

@@ -154,3 +154,33 @@ test("a non-string error code is left out of the log line", () => {
   const error = Object.assign(new Error("x"), { code: 503 });
   assert.equal("code" in chainErrorLog(error, "falha", []), false);
 });
+
+test("redacts a DNS error that cites only the secret host", () => {
+  const rpc = "https://apiKey123.rpc.provider.example/v2";
+  for (const text of [
+    "getaddrinfo ENOTFOUND apiKey123.rpc.provider.example",
+    "getaddrinfo ENOTFOUND apikey123.rpc.provider.example",
+    "connect ECONNREFUSED apiKey123.rpc.provider.example:443",
+  ]) {
+    const redacted = safeChainErrorMessage(new Error(text), [rpc]);
+    assert.doesNotMatch(redacted, /apikey123/i, text);
+    assert.match(
+      redacted,
+      /^(getaddrinfo ENOTFOUND|connect ECONNREFUSED) \[redacted\]/,
+    );
+  }
+});
+
+test("redacts the database host and port from connection errors", () => {
+  const db =
+    "postgresql://operador:senha-forte-123@db-interno.example.invalid:6543/x";
+  const redacted = redactSecrets(
+    "connect ECONNREFUSED db-interno.example.invalid:6543 | getaddrinfo ENOTFOUND DB-INTERNO.example.invalid",
+    [db],
+  );
+  assert.doesNotMatch(redacted, /db-interno/i);
+  assert.equal(
+    redacted,
+    "connect ECONNREFUSED [redacted] | getaddrinfo ENOTFOUND [redacted]",
+  );
+});
