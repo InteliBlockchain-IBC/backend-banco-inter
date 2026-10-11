@@ -1,4 +1,5 @@
 import { syncChain } from "../src/blockchain/sync.js";
+import { safeChainErrorMessage } from "../src/blockchain/logging.js";
 
 const required = (key: string) => {
   const value = process.env[key];
@@ -26,7 +27,12 @@ while (true) {
     console.log(JSON.stringify(await syncChain(options)));
   } catch (error) {
     // Não derruba o worker por uma indisponibilidade transitória de RPC/banco.
-    console.error(error);
+    console.error(
+      JSON.stringify({
+        error: safeChainErrorMessage(error),
+        message: "falha na sincronização da blockchain",
+      }),
+    );
   }
   await new Promise((resolve) => setTimeout(resolve, interval));
 }

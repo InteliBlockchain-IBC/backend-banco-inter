@@ -109,9 +109,11 @@ export async function syncChain(options: ChainSyncOptions) {
         );
         offerId = found.rows[0]?.id ?? null;
       }
-      await db.query(
+      const persistedEvent = await db.query(
         `INSERT INTO chain_events (chain_id,contract_address,tx_hash,log_index,offer_id,event_name,block_number,block_hash,block_timestamp,event_args)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         ON CONFLICT DO NOTHING
+         RETURNING 1`,
         [
           sepolia.id,
           address(options.contractAddress),
@@ -125,6 +127,9 @@ export async function syncChain(options: ChainSyncOptions) {
           JSON.stringify(args),
         ],
       );
+      // Cursor e eventos são gravados na mesma transação, mas manter esse
+      // guarda torna a liquidação segura até em uma reexecução manual.
+      if (persistedEvent.rowCount === 0) continue;
       const status: Record<string, number> = {
         OfferSettled: 2,
         OfferCancelled: 3,
@@ -152,6 +157,54 @@ export async function syncChain(options: ChainSyncOptions) {
             new Date(Number(block.timestamp) * 1000),
           ],
         );
+      if (log.eventName === "OfferSettled" && offerId) {
+        const borrower = address(args.borrower ?? "");
+        const amount = args.amount;
+        if (!amount) throw new Error("OfferSettled sem valor");
+        const debit = await db.query<{
+          new_limit_cents: string;
+          previous_limit_cents: string;
+        }>(
+          `UPDATE contract_wallet_state
+              SET available_limit_cents = available_limit_cents - $4,
+                  observed_block = $5,
+                  observed_at = $6
+            WHERE chain_id = $1
+              AND contract_address = $2
+              AND wallet_address = $3
+              AND available_limit_cents >= $4
+          RETURNING (available_limit_cents + $4)::text AS previous_limit_cents,
+                    available_limit_cents::text AS new_limit_cents`,
+          [
+            sepolia.id,
+            address(options.contractAddress),
+            borrower,
+            amount,
+            Number(log.blockNumber),
+            new Date(Number(block.timestamp) * 1000),
+          ],
+        );
+        const limits = debit.rows[0];
+        if (!limits)
+          throw new Error(
+            "OfferSettled sem limite disponível correspondente para o tomador",
+          );
+        await db.query(
+          `INSERT INTO credit_limit_history (chain_id,contract_address,tx_hash,log_index,wallet_address,change_kind,previous_limit_cents,new_limit_cents,offer_id,block_timestamp)
+           VALUES ($1,$2,$3,$4,$5,'settlement',$6,$7,$8,$9)`,
+          [
+            sepolia.id,
+            address(options.contractAddress),
+            log.transactionHash,
+            Number(log.logIndex),
+            borrower,
+            limits.previous_limit_cents,
+            limits.new_limit_cents,
+            offerId,
+            new Date(Number(block.timestamp) * 1000),
+          ],
+        );
+      }
       if (
         [
           "InstitutionRegistered",
@@ -182,6 +235,21 @@ export async function syncChain(options: ChainSyncOptions) {
             log.eventName === "CreditLimitUpdated",
           ],
         );
+        if (log.eventName === "CreditLimitUpdated")
+          await db.query(
+            `INSERT INTO credit_limit_history (chain_id,contract_address,tx_hash,log_index,wallet_address,change_kind,previous_limit_cents,new_limit_cents,offer_id,block_timestamp)
+             VALUES ($1,$2,$3,$4,$5,'admin_update',$6,$7,NULL,$8)`,
+            [
+              sepolia.id,
+              address(options.contractAddress),
+              log.transactionHash,
+              Number(log.logIndex),
+              wallet,
+              args.previousLimit ?? "0",
+              args.newLimit ?? "0",
+              new Date(Number(block.timestamp) * 1000),
+            ],
+          );
       }
     }
     const finalBlock = await rpc.getBlock({ blockNumber: to });
