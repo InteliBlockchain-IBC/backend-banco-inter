@@ -242,6 +242,23 @@ test("aborting stops the worker during the wait and before the first pass", asyn
   assert.equal(calls, 1);
 });
 
+test("forwards the shutdown signal to the active synchronization", async () => {
+  const controller = new AbortController();
+  let received: AbortSignal | undefined;
+  await runChainWorker({
+    intervalMs: 1,
+    options: {} as ChainSyncOptions,
+    signal: controller.signal,
+    sync: async (options) => {
+      received = options.signal;
+      controller.abort();
+      return result(true);
+    },
+    write: () => undefined,
+  });
+  assert.equal(received, controller.signal);
+});
+
 test("successful passes are logged as info lines with the batch result", async () => {
   const controller = new AbortController();
   const lines: string[] = [];

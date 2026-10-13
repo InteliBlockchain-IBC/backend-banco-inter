@@ -68,19 +68,6 @@ test("the status filter returns only open offers", async (t) => {
     mockOfferId(15),
     mockOfferId(16),
     mockOfferId(17),
-    mockOfferId(18),
-    mockOfferId(19),
-    mockOfferId(20),
-    mockOfferId(21),
-    mockOfferId(22),
-    mockOfferId(23),
-    mockOfferId(24),
-    mockOfferId(25),
-    mockOfferId(26),
-    mockOfferId(27),
-    mockOfferId(28),
-    mockOfferId(29),
-    mockOfferId(30),
   ]);
 });
 
@@ -103,8 +90,34 @@ test("wallet and role narrow the list to one side of the desk", async (t) => {
     asBorrower.every((offer) => offer.borrower.wallet === mockWallets.alfa),
   );
   assert.equal(asLender.length, 10);
-  assert.equal(asBorrower.length, 10);
+  assert.equal(asBorrower.length, 6);
   assert.equal(any.length, asLender.length + asBorrower.length);
+});
+
+test("open offers involving a revoked wallet refuse settlement without changing history", async (t) => {
+  const { app } = await setup(t);
+  for (const id of [mockOfferId(12), mockOfferId(13)]) {
+    const url = `/api/offers/${id}`;
+    const before = (await app.inject({ method: "GET", url })).json().data;
+    const events = (
+      await app.inject({ method: "GET", url: `${url}/events` })
+    ).json().data;
+    assert.equal(before.status, "offered");
+    const accept = await app.inject({
+      method: "POST",
+      url: `/api/mock/offers/${id}/accept`,
+    });
+    assert.equal(accept.statusCode, 422);
+    assert.match(accept.json().type, /not-registered-institution$/);
+    assert.deepEqual(
+      (await app.inject({ method: "GET", url })).json().data,
+      before,
+    );
+    assert.deepEqual(
+      (await app.inject({ method: "GET", url: `${url}/events` })).json().data,
+      events,
+    );
+  }
 });
 
 test("an offer past expiresAt shows expired but keeps the on-chain code", async (t) => {

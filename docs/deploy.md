@@ -81,7 +81,7 @@ Registre a URL no README principal e no board do projeto.
 
 - **Código:** merge na `main` → o Render reconstrói e publica sozinho. Se o healthcheck falhar, a versão anterior continua no ar.
 - **Migration nova:** só criar o arquivo `migrations/NNN_nome.sql`. O próximo start aplica.
-- **Renovar a massa de demonstração** (horários relativos ao seed, então as ofertas abertas vencem em 1 hora): copie a *External Database URL* do banco no painel do Render e rode localmente:
+- **Renovar a massa de demonstração** (os horários são relativos ao seed: há ofertas abertas com validade de 1 hora, 4 horas e, no cenário da carteira Delta revogada, 10 dias): copie a *External Database URL* do banco no painel do Render e rode localmente:
   ```bash
   DATABASE_URL="<external url>?sslmode=require" npm run db:seed -- --reset
   ```
