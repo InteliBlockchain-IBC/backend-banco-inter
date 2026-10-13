@@ -29,6 +29,8 @@ export type ChainSyncOptions = Readonly<{
   startBlock: number;
   /** Substitui o cliente HTTP criado a partir de `rpcUrl`. */
   client?: ChainReader;
+  /** Cancela o passe em curso durante o desligamento do worker. */
+  signal?: AbortSignal;
   /** Blocos por eth_getLogs; nunca acima de MAX_BLOCKS_PER_BATCH. */
   batchSize?: number;
 }>;
@@ -73,6 +75,30 @@ const LOCK = 724182916;
 export const MAX_BLOCKS_PER_BATCH = 10;
 
 const address = (value: string) => value.toLowerCase();
+const aborted = (signal: AbortSignal) =>
+  signal.reason instanceof Error
+    ? signal.reason
+    : new Error("Sincronização da blockchain cancelada");
+
+/** Faz com que conexão ao banco também respeite o desligamento do worker. */
+function abortable<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (signal === undefined) return promise;
+  if (signal.aborted) return Promise.reject(aborted(signal));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(aborted(signal));
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
 const eventArgs = (args: Record<string, unknown>) =>
   Object.fromEntries(
     Object.entries(args).map(([key, value]) => [key, String(value)]),
@@ -107,9 +133,16 @@ export async function syncChain(
   const batch = BigInt(
     Math.min(options.batchSize ?? MAX_BLOCKS_PER_BATCH, MAX_BLOCKS_PER_BATCH),
   );
+  if (options.signal?.aborted) throw aborted(options.signal);
   const rpc =
     options.client ??
-    createPublicClient({ chain: sepolia, transport: http(options.rpcUrl) });
+    createPublicClient({
+      chain: sepolia,
+      transport:
+        options.signal === undefined
+          ? http(options.rpcUrl)
+          : http(options.rpcUrl, { fetchOptions: { signal: options.signal } }),
+    });
   const chainId = await rpc.getChainId();
   if (chainId !== sepolia.id)
     throw new ChainSyncError(
@@ -131,7 +164,7 @@ export async function syncChain(
   db.on("error", (error) => {
     connectionError = error;
   });
-  await db.connect();
+  await abortable(db.connect(), options.signal);
 
   const blocks = new Map<bigint, { hash: Hash; timestamp: bigint }>();
   /** Bloco canônico; com `expected`, exige que o log venha desse mesmo bloco. */
