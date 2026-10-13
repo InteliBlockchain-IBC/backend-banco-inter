@@ -539,7 +539,11 @@ Uma instituição pode operar várias carteiras; o limite e o cadastro on-chain 
 | 7 | Beta → Alfa | R$ 30 mi | 102% | `expired` (código 0) |
 | 8 | Alfa → Beta | R$ 40 mi | 105% | `offered` (vence ~50 min após subir) |
 | 9 | Gama → Alfa | R$ 15 mi, 2 dias | 103,5% | `offered` (vence ~55 min após subir) |
-| 10–30 | Alfa → Beta, Beta → Gama e Gama → Alfa | R$ 1–3 mi, 1–3 dias | 100–105% | `offered` (validade de 4 horas; criadas 11–31 min antes do seed) |
+| 10–17 | Alfa, Beta, Gama, Tesouraria Alfa e Delta | R$ 1–1,7 mi, 1–3 dias | 100–101,75% | `offered`; Delta participa de ofertas anteriores à revogação |
+| 18–22 | Alfa → Tesouraria Alfa | R$ 1,8–2,2 mi, 1–3 dias | 102–103% | `settled`, com débito do limite da tesouraria |
+| 23–25 | Delta → Beta, Tesouraria Alfa → Gama e Beta → Tesouraria Alfa | R$ 2,3–2,5 mi | 103,25–103,75% | `cancelled` |
+| 26–28 | Gama → Delta, Tesouraria Alfa → Alfa e Beta → Tesouraria Alfa | R$ 2,6–2,8 mi | 104–104,5% | `rejected` |
+| 29–30 | Tesouraria Alfa → Gama e Delta → Beta | R$ 2,9–3 mi | 104,75–105% | `expired`, uma com evento e outra por validade |
 
 O id da oferta N na API é `a0000000-0000-4000-8000-00000000000N`. Comandos `/api/mock` adicionam ofertas além das trinta fixtures; intenções não alteram a lista. Em memória há teto de 100 ofertas e tudo se perde ao reiniciar; no PostgreSQL não há teto e os dados persistem.
 
