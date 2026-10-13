@@ -43,11 +43,15 @@ export async function runChainWorker({
   while (!signal?.aborted) {
     let wait = intervalMs;
     try {
-      const result = await sync(options);
+      const result = await sync(
+        signal === undefined ? options : { ...options, signal },
+      );
       failures = 0;
       write("stdout", JSON.stringify({ level: "info", ...result }));
       if (!result.caughtUp) wait = 0;
     } catch (error) {
+      // Desligamento não é falha operacional e não deve gerar alerta.
+      if (signal?.aborted && error === signal.reason) break;
       failures += 1;
       wait = retryDelay(intervalMs, failures);
       write(
