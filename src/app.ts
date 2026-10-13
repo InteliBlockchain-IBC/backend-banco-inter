@@ -6,22 +6,22 @@ import Fastify, {
   type FastifyReply,
   type FastifyRequest,
 } from "fastify";
-import { PgRepository } from "./repositories/postgres/pg-repository.js";
-import { InMemoryRepository } from "./repositories/in-memory/in-memory-repository.js";
 import {
   ApiProblem,
   createProblem,
-  problemSchema,
   PROBLEM_BASE_URI,
+  problemSchema,
 } from "./http/errors.js";
 import { registerChainRoutes } from "./http/routes/chain.js";
 import { registerCreditLimitRoutes } from "./http/routes/credit-limits.js";
 import { registerHealthRoutes } from "./http/routes/health.js";
-import { registerOfferRoutes } from "./http/routes/offers.js";
 import { registerSimulatedOfferRoutes } from "./http/routes/mock-offers.js";
+import { registerOfferRoutes } from "./http/routes/offers.js";
 import { registerOperationRoutes } from "./http/routes/operations.js";
 import { registerTransactionRequestRoutes } from "./http/routes/transaction-requests.js";
 import { sharedSchemas } from "./http/schemas.js";
+import { InMemoryRepository } from "./repositories/in-memory/in-memory-repository.js";
+import { PgRepository } from "./repositories/postgres/pg-repository.js";
 import type { Repository } from "./repositories/repository.js";
 
 export const API_VERSION = "0.4.0";

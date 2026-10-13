@@ -1,6 +1,22 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import {
+  actionEventArgs,
+  actionOutcome,
+  blockTime,
+  offerCreatedArgs,
+  offerExpiry,
+  offerSettledArgs,
+  parseAmount,
+  parseCounterparties,
+  requireActionable,
+  requireLimit,
+  requireRegisteredWallet,
+  type SimulatedAction,
+  type SimulatedOfferInput,
+  syntheticHash,
+} from "../../domain/rules.js";
+import {
   type Address,
   type ChainEventName,
   type ChainEventRecord,
@@ -18,33 +34,6 @@ import {
   type WalletState,
 } from "../../domain/types.js";
 import {
-  actionEventArgs,
-  actionOutcome,
-  blockTime,
-  offerCreatedArgs,
-  offerExpiry,
-  offerSettledArgs,
-  parseAmount,
-  parseCounterparties,
-  requireActionable,
-  requireLimit,
-  requireRegisteredWallet,
-  type SimulatedAction,
-  type SimulatedOfferInput,
-  syntheticHash,
-} from "../../domain/rules.js";
-import { problems } from "../../http/errors.js";
-import {
-  type CreditLimitFilter,
-  type Repository,
-  type OfferFilter,
-  type OfferIntentInput,
-  type OfferView,
-  type Page,
-  REQUEST_TTL_MS,
-  type SimulationResult,
-} from "../repository.js";
-import {
   creditLimitChangeView,
   creditLimitView,
   deploymentView,
@@ -58,6 +47,17 @@ import {
   syncStatusView,
   type ViewContext,
 } from "../../domain/views.js";
+import { problems } from "../../http/errors.js";
+import {
+  type CreditLimitFilter,
+  type OfferFilter,
+  type OfferIntentInput,
+  type OfferView,
+  type Page,
+  REQUEST_TTL_MS,
+  type Repository,
+  type SimulationResult,
+} from "../repository.js";
 
 /**
  * Fonte de dados PostgreSQL. Lê e grava a projeção de `migrations/` para o
@@ -82,6 +82,7 @@ type DeploymentRow = {
   chain_id: string;
   contract_address: string;
   position_token_address: string;
+  source: "listener" | "seed";
   start_block: string;
 };
 
@@ -730,7 +731,7 @@ export class PgRepository implements Repository {
   ): Promise<SimulationResult> {
     return this.#transaction(async (client) => {
       await client.query("SELECT pg_advisory_xact_lock($1)", [SIMULATION_LOCK]);
-      const d = await this.#deployment(client);
+      const d = await this.#simulationDeployment(client);
       const { borrower, lender } = parseCounterparties(input);
       const lenderRow = await this.#walletRow(client, d, lender);
       requireRegisteredWallet(lenderRow && toWallet(lenderRow));
@@ -811,7 +812,7 @@ export class PgRepository implements Repository {
   ): Promise<SimulationResult> {
     return this.#transaction(async (client) => {
       await client.query("SELECT pg_advisory_xact_lock($1)", [SIMULATION_LOCK]);
-      const d = await this.#deployment(client);
+      const d = await this.#simulationDeployment(client);
       const original = toOffer(await this.#offerRow(client, d, id, true));
       requireActionable(original, this.#now());
 
@@ -948,16 +949,35 @@ export class PgRepository implements Repository {
     }
   }
 
-  async #deployment(db: Queryable): Promise<Deployment> {
+  async #activeDeployment(db: Queryable): Promise<DeploymentRow | undefined> {
     const { rows } = await db.query<DeploymentRow>(
       `SELECT chain_id, contract_address, brl_token_address,
-              position_token_address, start_block
+              position_token_address, start_block, source
          FROM contract_deployments
-        ORDER BY created_at DESC, chain_id, contract_address
+        ORDER BY source = 'listener' DESC, created_at DESC,
+                 chain_id, contract_address
         LIMIT 1`,
     );
-    if (rows[0] === undefined) throw problems.deploymentNotConfigured();
-    return toDeployment(rows[0]);
+    return rows[0];
+  }
+
+  /** Deployment ativo: o do listener, se houver; senão o mais recente. */
+  async #deployment(db: Queryable): Promise<Deployment> {
+    const row = await this.#activeDeployment(db);
+    if (row === undefined) throw problems.deploymentNotConfigured();
+    return toDeployment(row);
+  }
+
+  /**
+   * Simulações gravam ofertas, eventos, cursor e débitos sintéticos. Só o
+   * contrato do seed aceita isso; no deployment real elas corromperiam a
+   * projeção que o listener mantém.
+   */
+  async #simulationDeployment(db: Queryable): Promise<Deployment> {
+    const row = await this.#activeDeployment(db);
+    if (row === undefined) throw problems.deploymentNotConfigured();
+    if (row.source !== "seed") throw problems.simulationUnavailable();
+    return toDeployment(row);
   }
 
   /** Resolve instituição de todas as carteiras citadas nas linhas, numa consulta. */
