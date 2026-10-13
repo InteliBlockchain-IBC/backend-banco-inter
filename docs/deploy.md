@@ -55,7 +55,7 @@ Futuro (não existem ainda no código): `SEPOLIA_RPC_URL` e endereço/ABI do con
 4. No primeiro start, o log deve mostrar:
    ```
    Migrações aplicadas: 001_initial_schema.sql, 002_institution_wallets.sql
-   Seed de demonstração gravado (9 ofertas, modo if-empty).
+   Seed de demonstração gravado (30 ofertas, modo if-empty).
    ... "dataSource":"postgres" ... fonte de dados configurada
    ... Server listening at http://0.0.0.0:10000
    ```
@@ -70,7 +70,7 @@ Com a URL pública (`https://backend-banco-inter.onrender.com` ou a que o Render
 | --- | --- |
 | `GET /health` | `200 {"status":"ok"}` |
 | `GET /ready` | `200`, com `{"name":"postgres","status":"up"}` em `dependencies` |
-| `GET /api/offers` | `200`, cabeçalho `X-Data-Source: postgres`, `meta.total` = 9 |
+| `GET /api/offers` | `200`, cabeçalho `X-Data-Source: postgres`, `meta.total` = 30 |
 | `GET /api/credit-limits` | 5 carteiras, duas do Banco Alfa |
 | `POST /api/mock/offers` | `404` (production não expõe simulação) |
 | `GET /docs` | Swagger UI |

@@ -382,7 +382,7 @@ Retorna 201 com `{ data: { offer: Offer, operation: null }, meta: { source: "moc
 
 `POST /api/mock/offers/{id}/accept`, `/reject` e `/cancel` não recebem body nem cabeçalho de identidade. Só uma oferta `offered` e não vencida aceita uma transição. O aceite revalida registro e limite do tomador, debita-o e devolve `{ offer: Offer, operation: Operation }` com `OfferAccepted` e `OfferSettled` no **mesmo hash sintético**; rejeição/cancelamento devolvem `operation: null` e não debitam limite. `GET /api/offers/{id}`, `/events`, `/api/operations/{txHash}` e `/api/credit-limits/{wallet}/history` mostram o novo estado (no PostgreSQL, para qualquer instância e depois de reiniciar). `expiresAt <= now` dá 409; ler uma oferta vencida não inventa evento `OfferExpired`. Repetir ação terminal também dá 409.
 
-O teto por instância é 100 ofertas incluindo nove fixtures; quando cheio, retorna 503 sem alterar o estado. Não há persistência, autenticação, rate limiting ou transferência real. Cada reinício restaura as fixtures. O OpenAPI servido em `production` omite os quatro POSTs.
+O teto por instância é 100 ofertas incluindo trinta fixtures; quando cheio, retorna 503 sem alterar o estado. Não há persistência, autenticação, rate limiting ou transferência real. Cada reinício restaura as fixtures. O OpenAPI servido em `production` omite os quatro POSTs.
 
 ### Operações
 
@@ -539,8 +539,9 @@ Uma instituição pode operar várias carteiras; o limite e o cadastro on-chain 
 | 7 | Beta → Alfa | R$ 30 mi | 102% | `expired` (código 0) |
 | 8 | Alfa → Beta | R$ 40 mi | 105% | `offered` (vence ~50 min após subir) |
 | 9 | Gama → Alfa | R$ 15 mi, 2 dias | 103,5% | `offered` (vence ~55 min após subir) |
+| 10–30 | Alfa → Beta, Beta → Gama e Gama → Alfa | R$ 1–3 mi, 1–3 dias | 100–105% | `offered` (validade de 4 horas; criadas 11–31 min antes do seed) |
 
-O id da oferta N na API é `a0000000-0000-4000-8000-00000000000N`. Comandos `/api/mock` adicionam ofertas além das nove fixtures; intenções não alteram a lista. Em memória há teto de 100 ofertas e tudo se perde ao reiniciar; no PostgreSQL não há teto e os dados persistem.
+O id da oferta N na API é `a0000000-0000-4000-8000-00000000000N`. Comandos `/api/mock` adicionam ofertas além das trinta fixtures; intenções não alteram a lista. Em memória há teto de 100 ofertas e tudo se perde ao reiniciar; no PostgreSQL não há teto e os dados persistem.
 
 ---
 

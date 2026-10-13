@@ -96,7 +96,7 @@ test("creating an offer does not add it to the list before the listener sees it"
   await createOffer(app, mockWallets.alfa);
   const list = await app.inject({ method: "GET", url: "/api/offers" });
 
-  assert.equal(list.json().meta.total, 9);
+  assert.equal(list.json().meta.total, 30);
 });
 
 test("creating an offer requires the wallet header", async (t) => {
@@ -208,7 +208,7 @@ test("intent memory is bounded and rejects further writes without adding offers"
   assert.match(full.json().type, /request-store-full$/);
   assert.equal(
     (await app.inject({ method: "GET", url: "/api/offers" })).json().meta.total,
-    9,
+    30,
   );
 });
 
