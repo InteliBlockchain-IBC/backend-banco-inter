@@ -30,6 +30,8 @@
     "db:migrate": "npm run build && node dist/scripts/migrate.js",
     "db:seed": "npm run build && node dist/scripts/seed.js",
     "db:setup": "npm run build && node dist/scripts/setup-db.js",
+    "chain:sync": "npm run build && node dist/scripts/sync-chain.js",
+    "chain:watch": "npm run build && node dist/scripts/watch-chain.js",
     "test:db": "npm run build && node -e \"if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required')\" && node --test \"dist/test/db/*.test.js\"",
     "docs:export": "npm run build && node dist/scripts/export-docs.js",
     "format": "biome format --write .",
@@ -40,7 +42,8 @@
     "@fastify/swagger": "^9.8.1",
     "@fastify/swagger-ui": "^6.1.1",
     "fastify": "^5.12.5",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "viem": "^2.57.4"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^13.0.0",

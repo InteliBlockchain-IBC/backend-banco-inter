@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "./app.js";
-import { loadConfig, type AppConfig } from "./config.js";
+import { type AppConfig, loadConfig } from "./config.js";
 
 export async function startServer(config: AppConfig): Promise<FastifyInstance> {
   const app = await buildApp({
