@@ -1,12 +1,4 @@
-import {
-  type Address,
-  type ChainEventName,
-  type ChainEventRecord,
-  type Hash,
-  type OfferRecord,
-  onchainStatusCodes,
-  type SettlementRecord,
-} from "../../domain/types.js";
+import type { Fixtures } from "../../demo/fixtures.js";
 import {
   actionEventArgs,
   actionOutcome,
@@ -23,8 +15,16 @@ import {
   type SimulatedOfferInput,
   syntheticHash,
 } from "../../domain/rules.js";
+import {
+  type Address,
+  type ChainEventName,
+  type ChainEventRecord,
+  type Hash,
+  type OfferRecord,
+  onchainStatusCodes,
+  type SettlementRecord,
+} from "../../domain/types.js";
 import { ApiProblem, problems } from "../../http/errors.js";
-import type { Fixtures } from "../../demo/fixtures.js";
 
 /**
  * Transições da simulação sobre o estado em memória (`Fixtures`), aplicando as

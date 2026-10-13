@@ -37,7 +37,7 @@ Condições do Render consultadas em 06/10/2026 (fontes no fim do documento). Co
 | `PORT` | definida pelo Render | Render | `src/config.ts` já lê `PORT`. |
 | `SEED_DEMO` | `if-empty` | blueprint | Grava a massa de demonstração só no primeiro start. `reset` recria a cada start: **não deixar ligado**. |
 
-Futuro (não existem ainda no código): `SEPOLIA_RPC_URL` e endereço/ABI do contrato quando o listener entrar (Semana 4), e a origem do frontend quando a API ganhar CORS.
+Listener (worker separado, `node dist/scripts/watch-chain.js`): `SEPOLIA_RPC_URL` (secreta), `CREDIT_INTERBANK_OFFER_ADDRESS`, `BRL_TOKEN_ADDRESS`, `CDI_POSITION_TOKEN_ADDRESS`, `CREDIT_INTERBANK_OFFER_START_BLOCK`, `CHAIN_SYNC_CONFIRMATIONS` e `CHAIN_SYNC_INTERVAL_MS`, além da mesma `DATABASE_URL`. O plano free do Render não oferece background worker; no compose local ele roda no perfil `listener`. Futuro: a origem do frontend quando a API ganhar CORS.
 
 ## Passo a passo
 

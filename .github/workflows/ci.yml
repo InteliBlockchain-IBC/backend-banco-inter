@@ -33,7 +33,9 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:16
+        # Espelho oficial no Amazon ECR Public: não exige credenciais do Docker Hub
+        # e evita tanto o limite de pulls quanto falhas de autenticação do runner.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_USER: inter_test
           POSTGRES_PASSWORD: inter_test_only

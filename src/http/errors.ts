@@ -173,6 +173,13 @@ export const problems = {
       "Já existe uma intenção em andamento",
       `A intenção ${requestId} para esta ação ainda está pending ou submitted.`,
     ),
+  simulationUnavailable: () =>
+    new ApiProblem(
+      409,
+      "simulation-unavailable",
+      "Simulação indisponível no contrato real",
+      "O deployment ativo é alimentado pelo listener da Sepolia. Comandos /api/mock só gravam no contrato sintético do seed.",
+    ),
   requestStoreFull: () =>
     new ApiProblem(
       503,

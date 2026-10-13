@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { problemSchema } from "../errors.js";
 import type { Repository } from "../../repositories/repository.js";
+import { problemSchema } from "../errors.js";
 
 const healthResponse = {
   additionalProperties: false,

@@ -1,5 +1,6 @@
 # Ambiente local em um comando: `docker compose up --build`.
-# db -> setup (migrations + seed de demonstração) -> api, nessa ordem.
+# db -> setup (migrations + seed de demonstração) -> api, nessa ordem; o
+# listener Sepolia sobe com `--profile listener`.
 x-database-url: &database-url postgresql://${POSTGRES_USER:-banco_inter}:${POSTGRES_PASSWORD:-banco_inter_local}@db:5432/${POSTGRES_DB:-banco_inter}
 
 services:
@@ -53,6 +54,27 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  # Listener Sepolia (opcional): `docker compose --profile listener up -d`.
+  # Lê as variáveis do bloco "Listener Sepolia" do .env. Falhas de RPC ou de
+  # banco não encerram o worker; configuração inválida, sim (no boot).
+  listener:
+    build: .
+    profiles: ["listener"]
+    command: ["node", "dist/scripts/watch-chain.js"]
+    environment:
+      DATABASE_URL: *database-url
+      SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-}
+      CREDIT_INTERBANK_OFFER_ADDRESS: ${CREDIT_INTERBANK_OFFER_ADDRESS:-}
+      BRL_TOKEN_ADDRESS: ${BRL_TOKEN_ADDRESS:-}
+      CDI_POSITION_TOKEN_ADDRESS: ${CDI_POSITION_TOKEN_ADDRESS:-}
+      CREDIT_INTERBANK_OFFER_START_BLOCK: ${CREDIT_INTERBANK_OFFER_START_BLOCK:-}
+      CHAIN_SYNC_CONFIRMATIONS: ${CHAIN_SYNC_CONFIRMATIONS:-12}
+      CHAIN_SYNC_INTERVAL_MS: ${CHAIN_SYNC_INTERVAL_MS:-15000}
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
 volumes:
   postgres_data:

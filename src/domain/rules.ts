@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { ApiProblem, problems } from "../http/errors.js";
 import {
   type Address,
   type ChainEventName,
@@ -9,7 +10,6 @@ import {
   UINT256_MAX,
   type WalletState,
 } from "./types.js";
-import { ApiProblem, problems } from "../http/errors.js";
 
 /**
  * Regras do fluxo DvP, puras (sem banco nem HTTP). Os dois repositórios as

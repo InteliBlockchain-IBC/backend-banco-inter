@@ -1,5 +1,5 @@
-import type { OfferStatus, TransactionAction } from "../domain/types.js";
 import type { SimulatedOfferInput } from "../domain/rules.js";
+import type { OfferStatus, TransactionAction } from "../domain/types.js";
 import type {
   creditLimitChangeView,
   creditLimitView,
