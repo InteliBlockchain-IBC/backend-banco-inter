@@ -149,7 +149,7 @@ test("operations are receipts filtered by party", async (t) => {
   ).json();
   const first = all.data[0];
 
-  assert.equal(all.meta.total, 3);
+  assert.equal(all.meta.total, 8);
   assert.equal(gama.meta.total, 2);
   assert.equal(first.positionTokenId, first.onchainOfferId);
   assert.equal(

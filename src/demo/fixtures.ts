@@ -313,12 +313,234 @@ export function createFixtures(now: Date): Fixtures {
       rateCdiBps: 10_350,
       termDays: 2,
     },
+    {
+      amountCents: 100000000n,
+      borrower: mockWallets.beta,
+      createdAgoMs: 11 * MINUTE,
+      lender: mockWallets.alfaTreasury,
+      outcome: { kind: "open", validityMs: 4 * HOUR },
+      rateCdiBps: 10000,
+      termDays: 1,
+    },
+    {
+      amountCents: 110000000n,
+      borrower: mockWallets.alfaTreasury,
+      createdAgoMs: 12 * MINUTE,
+      lender: mockWallets.beta,
+      outcome: { kind: "open", validityMs: 4 * HOUR },
+      rateCdiBps: 10025,
+      termDays: 2,
+    },
+    {
+      amountCents: 120000000n,
+      borrower: mockWallets.alfa,
+      createdAgoMs: 5 * DAY + 4 * MINUTE,
+      lender: mockWallets.delta,
+      outcome: { kind: "open", validityMs: 10 * DAY },
+      rateCdiBps: 10050,
+      termDays: 3,
+    },
+    {
+      amountCents: 130000000n,
+      borrower: mockWallets.delta,
+      createdAgoMs: 5 * DAY + 3 * MINUTE,
+      lender: mockWallets.alfa,
+      outcome: { kind: "open", validityMs: 10 * DAY },
+      rateCdiBps: 10075,
+      termDays: 1,
+    },
+    {
+      amountCents: 140000000n,
+      borrower: mockWallets.gama,
+      createdAgoMs: 15 * MINUTE,
+      lender: mockWallets.alfaTreasury,
+      outcome: { kind: "open", validityMs: 4 * HOUR },
+      rateCdiBps: 10100,
+      termDays: 2,
+    },
+    {
+      amountCents: 150000000n,
+      borrower: mockWallets.alfaTreasury,
+      createdAgoMs: 16 * MINUTE,
+      lender: mockWallets.gama,
+      outcome: { kind: "open", validityMs: 4 * HOUR },
+      rateCdiBps: 10125,
+      termDays: 3,
+    },
+    {
+      amountCents: 160000000n,
+      borrower: mockWallets.gama,
+      createdAgoMs: 17 * MINUTE,
+      lender: mockWallets.alfa,
+      outcome: { kind: "open", validityMs: 4 * HOUR },
+      rateCdiBps: 10150,
+      termDays: 1,
+    },
+    {
+      amountCents: 170000000n,
+      borrower: mockWallets.alfa,
+      createdAgoMs: 18 * MINUTE,
+      lender: mockWallets.beta,
+      outcome: { kind: "open", validityMs: 4 * HOUR },
+      rateCdiBps: 10175,
+      termDays: 2,
+    },
+    {
+      amountCents: 180000000n,
+      borrower: mockWallets.alfaTreasury,
+      createdAgoMs: 20 * HOUR + MINUTE,
+      lender: mockWallets.alfa,
+      outcome: { kind: "settled", afterMs: 5 * MINUTE },
+      rateCdiBps: 10200,
+      termDays: 3,
+    },
+    {
+      amountCents: 190000000n,
+      borrower: mockWallets.alfaTreasury,
+      createdAgoMs: 18 * HOUR + MINUTE,
+      lender: mockWallets.alfa,
+      outcome: { kind: "settled", afterMs: 5 * MINUTE },
+      rateCdiBps: 10225,
+      termDays: 1,
+    },
+    {
+      amountCents: 200000000n,
+      borrower: mockWallets.alfaTreasury,
+      createdAgoMs: 16 * HOUR + MINUTE,
+      lender: mockWallets.alfa,
+      outcome: { kind: "settled", afterMs: 5 * MINUTE },
+      rateCdiBps: 10250,
+      termDays: 2,
+    },
+    {
+      amountCents: 210000000n,
+      borrower: mockWallets.alfaTreasury,
+      createdAgoMs: 14 * HOUR + MINUTE,
+      lender: mockWallets.alfa,
+      outcome: { kind: "settled", afterMs: 5 * MINUTE },
+      rateCdiBps: 10275,
+      termDays: 3,
+    },
+    {
+      amountCents: 220000000n,
+      borrower: mockWallets.alfaTreasury,
+      createdAgoMs: 12 * HOUR + MINUTE,
+      lender: mockWallets.alfa,
+      outcome: { kind: "settled", afterMs: 5 * MINUTE },
+      rateCdiBps: 10300,
+      termDays: 1,
+    },
+    {
+      amountCents: 230000000n,
+      borrower: mockWallets.beta,
+      createdAgoMs: 5 * DAY + 2 * MINUTE,
+      lender: mockWallets.delta,
+      outcome: { kind: "cancelled", afterMs: 5 * MINUTE },
+      rateCdiBps: 10325,
+      termDays: 2,
+    },
+    {
+      amountCents: 240000000n,
+      borrower: mockWallets.gama,
+      createdAgoMs: 6 * HOUR + MINUTE,
+      lender: mockWallets.alfaTreasury,
+      outcome: { kind: "cancelled", afterMs: 5 * MINUTE },
+      rateCdiBps: 10350,
+      termDays: 3,
+    },
+    {
+      amountCents: 250000000n,
+      borrower: mockWallets.alfaTreasury,
+      createdAgoMs: 5 * HOUR + MINUTE,
+      lender: mockWallets.beta,
+      outcome: { kind: "cancelled", afterMs: 5 * MINUTE },
+      rateCdiBps: 10375,
+      termDays: 1,
+    },
+    {
+      amountCents: 260000000n,
+      borrower: mockWallets.delta,
+      createdAgoMs: 5 * DAY + 1 * MINUTE,
+      lender: mockWallets.gama,
+      outcome: { kind: "rejected", afterMs: 5 * MINUTE },
+      rateCdiBps: 10400,
+      termDays: 2,
+    },
+    {
+      amountCents: 270000000n,
+      borrower: mockWallets.alfa,
+      createdAgoMs: 4 * HOUR + MINUTE,
+      lender: mockWallets.alfaTreasury,
+      outcome: { kind: "rejected", afterMs: 5 * MINUTE },
+      rateCdiBps: 10425,
+      termDays: 3,
+    },
+    {
+      amountCents: 280000000n,
+      borrower: mockWallets.alfaTreasury,
+      createdAgoMs: 3 * HOUR + MINUTE,
+      lender: mockWallets.beta,
+      outcome: { kind: "rejected", afterMs: 5 * MINUTE },
+      rateCdiBps: 10450,
+      termDays: 1,
+    },
+    {
+      amountCents: 290000000n,
+      borrower: mockWallets.gama,
+      createdAgoMs: 2 * HOUR + MINUTE,
+      lender: mockWallets.alfaTreasury,
+      outcome: { kind: "expired", validityMs: HOUR, expireCalled: true },
+      rateCdiBps: 10475,
+      termDays: 2,
+    },
+    {
+      amountCents: 300000000n,
+      borrower: mockWallets.beta,
+      createdAgoMs: 5 * DAY,
+      lender: mockWallets.delta,
+      outcome: { kind: "expired", validityMs: HOUR, expireCalled: false },
+      rateCdiBps: 10500,
+      termDays: 3,
+    },
   ];
 
   const offers: OfferRecord[] = [];
   const settlements: SettlementRecord[] = [];
 
+  // Banco Alfa cadastra uma segunda carteira (tesouraria) com limite próprio.
+  // Registrada antes das ofertas novas, preservando os hashes das nove originais.
+  function registerTreasury(): void {
+    const registeredAt = new Date(nowMs - DAY);
+    const state: WalletState = {
+      availableLimitCents: 0n,
+      institutionId: mockInstitutionIds.alfa,
+      isRegistered: true,
+      observedAt: registeredAt,
+      observedBlock: blockAt(registeredAt),
+      wallet: mockWallets.alfaTreasury,
+    };
+    walletByAddress.set(state.wallet, state);
+    emit(registeredAt, nextTx(), 0, "InstitutionRegistered", {
+      timestamp: String(Math.floor(registeredAt.getTime() / 1000)),
+      wallet: state.wallet,
+    });
+    const limitAt = new Date(registeredAt.getTime() + 10 * MINUTE);
+    const limitTx = nextTx();
+    emit(limitAt, limitTx, 0, "CreditLimitUpdated", {
+      institution: state.wallet,
+      newLimit: "6000000000",
+      previousLimit: "0",
+      timestamp: String(Math.floor(limitAt.getTime() / 1000)),
+    });
+    setLimit(state, 6_000_000_000n, limitAt, "admin_update", {
+      logIndex: 0,
+      offerId: null,
+      txHash: limitTx,
+    });
+  }
+
   seeds.forEach((seed, index) => {
+    if (index === 9) registerTreasury();
     const onchainOfferId = BigInt(index + 1);
     const id = mockOfferId(index + 1);
     const createdAt = new Date(nowMs - seed.createdAgoMs);
@@ -464,38 +686,6 @@ export function createFixtures(now: Date): Fixtures {
       }
     }
   });
-
-  // Banco Alfa cadastra uma segunda carteira (tesouraria) com limite próprio.
-  // Vem depois das ofertas para não deslocar os hashes sintéticos acima.
-  {
-    const registeredAt = new Date(nowMs - DAY);
-    const state: WalletState = {
-      availableLimitCents: 0n,
-      institutionId: mockInstitutionIds.alfa,
-      isRegistered: true,
-      observedAt: registeredAt,
-      observedBlock: blockAt(registeredAt),
-      wallet: mockWallets.alfaTreasury,
-    };
-    walletByAddress.set(state.wallet, state);
-    emit(registeredAt, nextTx(), 0, "InstitutionRegistered", {
-      timestamp: String(Math.floor(registeredAt.getTime() / 1000)),
-      wallet: state.wallet,
-    });
-    const limitAt = new Date(registeredAt.getTime() + 10 * MINUTE);
-    const limitTx = nextTx();
-    emit(limitAt, limitTx, 0, "CreditLimitUpdated", {
-      institution: state.wallet,
-      newLimit: "6000000000",
-      previousLimit: "0",
-      timestamp: String(Math.floor(limitAt.getTime() / 1000)),
-    });
-    setLimit(state, 6_000_000_000n, limitAt, "admin_update", {
-      logIndex: 0,
-      offerId: null,
-      txHash: limitTx,
-    });
-  }
 
   chainEvents.sort(
     (a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex,

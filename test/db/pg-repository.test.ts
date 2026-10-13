@@ -388,7 +388,7 @@ test("an empty database answers 503 until the seed runs", {
   assert.equal(response.statusCode, 503);
   assert.equal(response.json().title, "Contrato não registrado");
   assert.deepEqual(await seedDemo(databaseUrl, { now: START }), {
-    offers: 9,
+    offers: 30,
     seeded: true,
   });
   assert.deepEqual(await seedDemo(databaseUrl, { now: START }), {
@@ -396,7 +396,7 @@ test("an empty database answers 503 until the seed runs", {
     seeded: false,
   });
   const after = await app.inject({ method: "GET", url: "/api/offers" });
-  assert.equal(after.json().meta.total, 9);
+  assert.equal(after.json().meta.total, 30);
 });
 
 test("one institution operates several wallets", { skip }, async (t) => {

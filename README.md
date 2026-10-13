@@ -57,7 +57,7 @@ Não é necessário instalar Node.js ou PostgreSQL no computador.
 
 As portas publicadas ficam acessíveis apenas no próprio computador. Para alterar portas, credenciais ou o seed, copie `.env.example` para `.env` e ajuste `API_PORT`, `POSTGRES_*`, `API_NODE_ENV` e `SEED_DEMO`. O comando funciona também sem `.env`, usando esses padrões.
 
-**Seed de demonstração.** Quatro bancos fictícios — o Banco Alfa com duas carteiras, mostrando que uma instituição opera várias — e nove ofertas. Os horários são relativos ao momento do seed, então logo depois dele há duas ofertas abertas (validade de 1 hora), liquidações, cancelamento, rejeição e vencimentos. `SEED_DEMO=if-empty` (padrão) grava só no primeiro `up` e preserva o que você criar depois. Para recriar a massa com horários renovados — por exemplo, antes de uma demonstração:
+**Seed de demonstração.** Quatro bancos fictícios — o Banco Alfa com duas carteiras, mostrando que uma instituição opera várias — e trinta ofertas. Os horários são relativos ao momento do seed, então logo depois dele há 10 ofertas abertas, 8 liquidadas, 4 canceladas, 4 rejeitadas e 4 expiradas. As cinco carteiras participam das ofertas; Delta tem ofertas criadas antes da revogação que continuam abertas, para demonstrar o bloqueio de novas ações. `SEED_DEMO=if-empty` (padrão) grava só no primeiro `up` e preserva o que você criar depois. Para recriar a massa com horários renovados — por exemplo, antes de uma demonstração:
 
 ```bash
 docker compose run --rm -e SEED_DEMO=reset setup

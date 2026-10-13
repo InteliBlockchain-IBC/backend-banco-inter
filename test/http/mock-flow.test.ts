@@ -24,7 +24,7 @@ test("simulated create and accept update GET offers, events, receipt and borrowe
   assert.equal(create.json().meta.source, "mock");
   const offer = create.json().data.offer;
   assert.equal(offer.status, "offered");
-  assert.equal(offer.onchainOfferId, "10");
+  assert.equal(offer.onchainOfferId, "31");
   assert.equal(create.json().data.operation, null);
   const before = await app.inject({
     method: "GET",
@@ -43,7 +43,7 @@ test("simulated create and accept update GET offers, events, receipt and borrowe
   assert.equal(accept.json().data.offer.status, "settled");
   const operation = accept.json().data.operation;
   assert.equal(operation.offerId, offer.id);
-  assert.equal(operation.positionTokenId, "10");
+  assert.equal(operation.positionTokenId, "31");
   assert.match(operation.txHash, /^0x[a-f0-9]{64}$/);
   const [detail, events, receipt, limit, history, listed] = await Promise.all([
     app.inject({ method: "GET", url: `/api/offers/${offer.id}` }),
@@ -189,7 +189,7 @@ test("failed and expired simulated actions leave the state and history unchanged
   }
   assert.equal(
     (await app.inject({ method: "GET", url: "/api/offers" })).json().meta.total,
-    9,
+    30,
   );
   const created = await app.inject({
     method: "POST",
@@ -218,7 +218,7 @@ test("failed and expired simulated actions leave the state and history unchanged
 
 test("simulated offers have a hard per-instance cap and no effects on another app", async (t) => {
   const { app } = await setup(t);
-  for (let index = 9; index < 100; index++) {
+  for (let index = 30; index < 100; index++) {
     const created = await app.inject({
       method: "POST",
       url: "/api/mock/offers",
@@ -243,7 +243,7 @@ test("simulated offers have a hard per-instance cap and no effects on another ap
   assert.equal(
     (await other.inject({ method: "GET", url: "/api/offers" })).json().meta
       .total,
-    9,
+    30,
   );
 });
 

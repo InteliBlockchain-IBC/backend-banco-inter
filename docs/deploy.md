@@ -55,7 +55,7 @@ Listener (worker separado, `node dist/scripts/watch-chain.js`): `SEPOLIA_RPC_URL
 4. No primeiro start, o log deve mostrar:
    ```
    Migrações aplicadas: 001_initial_schema.sql, 002_institution_wallets.sql
-   Seed de demonstração gravado (9 ofertas, modo if-empty).
+   Seed de demonstração gravado (30 ofertas, modo if-empty).
    ... "dataSource":"postgres" ... fonte de dados configurada
    ... Server listening at http://0.0.0.0:10000
    ```
@@ -70,7 +70,7 @@ Com a URL pública (`https://backend-banco-inter.onrender.com` ou a que o Render
 | --- | --- |
 | `GET /health` | `200 {"status":"ok"}` |
 | `GET /ready` | `200`, com `{"name":"postgres","status":"up"}` em `dependencies` |
-| `GET /api/offers` | `200`, cabeçalho `X-Data-Source: postgres`, `meta.total` = 9 |
+| `GET /api/offers` | `200`, cabeçalho `X-Data-Source: postgres`, `meta.total` = 30 |
 | `GET /api/credit-limits` | 5 carteiras, duas do Banco Alfa |
 | `POST /api/mock/offers` | `404` (production não expõe simulação) |
 | `GET /docs` | Swagger UI |
@@ -81,7 +81,7 @@ Registre a URL no README principal e no board do projeto.
 
 - **Código:** merge na `main` → o Render reconstrói e publica sozinho. Se o healthcheck falhar, a versão anterior continua no ar.
 - **Migration nova:** só criar o arquivo `migrations/NNN_nome.sql`. O próximo start aplica.
-- **Renovar a massa de demonstração** (horários relativos ao seed, então as ofertas abertas vencem em 1 hora): copie a *External Database URL* do banco no painel do Render e rode localmente:
+- **Renovar a massa de demonstração** (os horários são relativos ao seed: há ofertas abertas com validade de 1 hora, 4 horas e, no cenário da carteira Delta revogada, 10 dias): copie a *External Database URL* do banco no painel do Render e rode localmente:
   ```bash
   DATABASE_URL="<external url>?sslmode=require" npm run db:seed -- --reset
   ```
