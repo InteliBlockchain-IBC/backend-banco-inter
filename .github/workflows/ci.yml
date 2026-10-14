@@ -57,6 +57,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:db
+      - name: Backend integration (RPC HTTP, PostgreSQL and API process)
+        run: npm run test:integration
       # A cobertura entra no relatório por arquivo carregado; sem `--silent` o npm
       # interleavea o próprio banner e o `grep` da etapa seguinte não casa.
       - name: Coverage gate
