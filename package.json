@@ -33,6 +33,7 @@
     "chain:sync": "npm run build && node dist/scripts/sync-chain.js",
     "chain:watch": "npm run build && node dist/scripts/watch-chain.js",
     "test:db": "npm run build && node -e \"if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required')\" && node --test \"dist/test/db/*.test.js\"",
+    "test:integration": "npm run build && node -e \"if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required: use um PostgreSQL descartável (veja README)')\" && node --test \"dist/test/integration/*.test.js\"",
     "docs:export": "npm run build && node dist/scripts/export-docs.js",
     "format": "biome format --write .",
     "format:check": "biome format .",
