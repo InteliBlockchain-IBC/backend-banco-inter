@@ -109,6 +109,7 @@ Sem `DATABASE_URL`, `NODE_ENV=development npm run start` sobe com os dados em me
 | `npm run db:migrate` | Só as migrations SQL com `DATABASE_URL` |
 | `npm run db:seed` | Só o seed; `npm run db:seed -- --reset` recria a massa |
 | `npm run test:db` | Migrations e integração PostgreSQL em schemas descartáveis (`TEST_DATABASE_URL`) |
+| `npm run test:integration` | Integração entre RPC HTTP local, PostgreSQL e processo real da API (`TEST_DATABASE_URL` obrigatória) |
 | `npm run docs:export` | Regera `docs/openapi.json` e a coleção Postman |
 | `npm test` | Roda a suíte de testes |
 | `npm run coverage` | Roda os testes com cobertura (exige `TEST_DATABASE_URL`) |
@@ -243,6 +244,27 @@ docs/                   arquitetura, modelagem e referência de API
 - banco vazio: 503 até o seed, e seed idempotente;
 - migrations: aplicação real, idempotência, concorrência e rollback;
 - listener (`test/db/chain-sync.test.ts`): logs codificados com a ABI numa chain falsa e PostgreSQL real — oferta, liquidação, débito exato e histórico; reprocessamento sem débito duplo; lotes de 10 blocos e confirmações; evento órfão, limite ausente/insuficiente, conflito, log inválido, chain errada e reorg com rollback do lote; falha de RPC no meio do lote; passes concorrentes; queda do socket do PostgreSQL sem derrubar o processo; simulação recusada e seed preservando o listener.
+
+### Integração entre RPC, PostgreSQL e API
+
+`test/integration/` exercita o cliente viem HTTP sem injeção de `ChainReader`, o listener, PostgreSQL e a API iniciada pelo entrypoint real. As requisições à API usam `fetch` por TCP. A suíte verifica:
+
+- oferta consultável antes das confirmações da liquidação, seguida de comprovante, eventos e débito exato;
+- reinício do processo e replay de logs sem duplicar liquidação ou consumir o limite novamente;
+- cancelamento sem liquidação ou débito adicional, com rejeição de uma intenção posterior de aceite;
+- falha RPC no meio do lote com rollback e recuperação, recusa de outra rede e cancelamento de leitura HTTP no shutdown.
+
+Use um PostgreSQL descartável. Cada cenário aplica as migrations em um schema próprio e remove esse schema ao terminar; processos e portas locais também são encerrados. O comando falha se a URL de teste estiver ausente:
+
+```bash
+TEST_DATABASE_URL=postgresql://inter_test:inter_test_only@127.0.0.1:5432/banco_inter_test \
+  npm run test:integration
+```
+
+O provedor JSON-RPC local devolve blocos e logs fictícios codificados com a ABI. O transporte HTTP, a decodificação viem, o banco e o processo da API são reais. Esta suíte não executa os contratos nem transfere BRLt/CDIP, não consulta a Sepolia e não verifica carteira, frontend ou RNF02. Essas provas continuam necessárias para o aceite ponta a ponta compartilhado.
+
+O job `test` do CI executa `test:integration` explicitamente; a suíte também participa de `npm test` e da cobertura.
+
 
 Localmente, o banco do compose serve: `docker compose up -d db` e `TEST_DATABASE_URL=postgresql://banco_inter:banco_inter_local@127.0.0.1:5432/banco_inter npm test`. O CI provisiona PostgreSQL 16 efêmero.
 

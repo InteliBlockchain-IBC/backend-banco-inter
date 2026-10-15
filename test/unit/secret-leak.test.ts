@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
+import { createInterface } from "node:readline";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
@@ -25,6 +26,7 @@ import { runChainWorker } from "../../src/blockchain/worker.js";
  */
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const PROCESS_TIMEOUT_MS = 60_000;
 
 type Secret = Readonly<{
   name: string;
@@ -225,13 +227,19 @@ const listenerEnv = (extra: Record<string, string> = {}) => ({
 function run(
   script: string,
   env: Record<string, string>,
-  stopAfterMs?: number,
+  stopAfterLine = false,
 ): Promise<{ code: number | null; output: string }> {
   return new Promise((done, fail) => {
     const child = spawn(
       process.execPath,
       [resolve(ROOT, "dist/scripts", script)],
-      { env, stdio: ["ignore", "pipe", "pipe"] },
+      {
+        env,
+        // Deadline do processo real; o shutdown normal espera uma linha completa.
+        killSignal: "SIGKILL",
+        signal: AbortSignal.timeout(PROCESS_TIMEOUT_MS),
+        stdio: ["ignore", "pipe", "pipe"],
+      },
     );
     let output = "";
     child.stdout.on("data", (chunk) => {
@@ -240,21 +248,25 @@ function run(
     child.stderr.on("data", (chunk) => {
       output += chunk;
     });
-    const timer =
-      stopAfterMs === undefined
-        ? setTimeout(() => child.kill("SIGKILL"), 60_000)
-        : setTimeout(() => child.kill("SIGTERM"), stopAfterMs);
+    const lines = stopAfterLine
+      ? createInterface({ input: child.stderr })
+      : undefined;
+    lines?.once("line", () => child.kill("SIGTERM"));
     child.on("error", fail);
     child.on("close", (code) => {
-      clearTimeout(timer);
+      lines?.close();
       done({ code, output });
     });
   });
 }
 
 test("the running worker never prints the RPC or database secrets", async () => {
-  const { code, output } = await run("watch-chain.js", listenerEnv(), 4_000);
+  const { code, output } = await run("watch-chain.js", listenerEnv(), true);
   assertNoLeak(output, [RPC_SECRET, DB_SECRET], "watch-chain");
+  assert.ok(
+    output.trim().length > 0,
+    "o worker deve registrar a falha antes de parar",
+  );
   const errors = output
     .trim()
     .split("\n")

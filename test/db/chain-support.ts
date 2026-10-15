@@ -233,7 +233,10 @@ export async function syncAll(opts: ChainSyncOptions) {
 }
 
 /** Cadastro, limite de 1.000,00, oferta de 300,00 e aceite liquidado. */
-export function happyPath(chain: FakeChain) {
+export function happyPath(
+  chain: FakeChain,
+  expiresAt = GENESIS_TIME + 103n * 12n + 3600n,
+) {
   chain.emit(101, 1, 0, "InstitutionRegistered", {
     timestamp: 1n,
     wallet: LENDER,
@@ -251,7 +254,7 @@ export function happyPath(chain: FakeChain) {
   chain.emit(103, 3, 0, "OfferCreated", {
     amount: 30_000n,
     borrower: BORROWER,
-    expiresAt: GENESIS_TIME + 103n * 12n + 3600n,
+    expiresAt,
     lender: LENDER,
     offerId: 1n,
     rateCDI: 10_250n,
