@@ -13,10 +13,10 @@ O objetivo da PoC é reduzir essa janela: o contrato inteligente valida o limite
 | Camada | Escolha | Situação nesta base | Alternativa e trade-off |
 |---|---|---|---|
 | Runtime | Node.js 24 LTS, TypeScript estrito | API e testes executáveis (`package.json`, `.nvmrc`) | Java/Spring traz ecossistema corporativo maior, mas exige outra toolchain e mais configuração para esta PoC; Python/FastAPI facilita prototipagem, mas fragmentaria os tipos compartilhados com o cliente JS. Nenhum benchmark comparativo foi executado. |
-| HTTP | Fastify 5 com schemas e OpenAPI | Implementado em `src/app.ts` e `src/routes/` | Express tem ecossistema amplo, porém validação e OpenAPI precisariam de composição adicional nesta base. |
-| Persistência | PostgreSQL 16 no CI; `pg` e SQL versionado | Migrations, runner e seed (`src/database/`) e `PgRepository` (`src/repositories/postgres/`): **rotas leem e gravam no banco** com `DATABASE_URL`; testes de paridade, concorrência e prontidão em PostgreSQL real | SQLite simplificaria instalação local, mas não exercitaria as mesmas constraints, locks e transações previstas para a projeção compartilhada. Um ORM acrescentaria mapeamentos a revisar para `numeric(78,0)` e chaves compostas; SQL direto mantém esses invariantes explícitos. |
-| Rede | Sepolia (testnet) | Apenas endereços e eventos sintéticos em fixtures | Rede permissionada mudaria as premissas de finalização e infraestrutura; está fora da PoC. |
-| Leitura on-chain | `viem` candidato | **Não instalado**; listener/RPC/ABI pendentes | `ethers` é opção viável; escolher após validar ABI, suporte a logs e requisitos de replay. |
+| HTTP | Fastify 5 com schemas e OpenAPI | Implementado em `src/app.ts` e `src/http/routes/` | Express tem ecossistema amplo, porém validação e OpenAPI precisariam de composição adicional nesta base. |
+| Persistência | PostgreSQL 17 no Compose/VPS e 16 no CI; `pg` e SQL versionado | Migrations, runner e seed (`src/database/`) e `PgRepository` (`src/repositories/postgres/`); testes de paridade, concorrência e prontidão em PostgreSQL real. A suíte também foi executada em PG17 antes do deploy | SQLite não exercitaria as mesmas constraints, locks e transações. Um ORM acrescentaria mapeamentos a revisar para `numeric(78,0)` e chaves compostas. |
+| Rede | Sepolia (testnet) | Listener disponível no código; ambiente público atual serve apenas o seed sintético | Rede permissionada mudaria as premissas de finalização e infraestrutura; está fora da PoC. |
+| Leitura on-chain | `viem` | Instalado; listener em `src/blockchain/`, acionado separadamente | `ethers` é alternativa, sem necessidade de troca para o deploy atual. |
 
 Sem ORM e sem serviço de fila nesta etapa. `npm run db:setup` aplica as migrations e o seed ao `DATABASE_URL`; provas on-chain, autenticação e replay continuam fora do escopo da migration. O código segue uma arquitetura em camadas, no estilo de Clean Architecture/hexagonal, dentro de um único serviço (monolito):
 
@@ -39,8 +39,8 @@ Fluxo **alvo**, não execução já disponível:
 
 1. O cliente prepara/assina uma transação em sua própria carteira, sem custódia do backend. Uma API futura autenticada pode persistir intenção e expor argumentos, mas os POSTs de intenção atuais são apenas desenvolvimento/teste e usam identidade autodeclarada.
 2. O contrato DvP valida registro, limite e saldo/allowance do ativo de liquidação; aceite e liquidação ocorrem na mesma transação.
-3. Um listener ainda a construir lê logs confirmados na Sepolia, detecta divergência de blocos, reprocessa projeções e avança o cursor em uma transação de banco.
-4. O cliente consulta a API para ver a projeção; hoje a projeção no PostgreSQL é alimentada pelo seed e pela simulação `/api/mock`, não pela chain.
+3. O listener implementado lê logs confirmados na Sepolia e grava o lote com o cursor na mesma transação. Detecta reorg e interrompe o lote; o reparo automático ainda não está implementado.
+4. O cliente consulta a API para ver a projeção. No ambiente público de demonstração, o listener está desligado e os dados vêm do seed.
 
 ## Componentes
 
@@ -62,7 +62,7 @@ Consultas e histórico no PostgreSQL (ou em memória, sem `DATABASE_URL` em deve
 
 ### PostgreSQL (integrado à API)
 
-As dez tabelas de domínio e `schema_migrations` são criadas pelas migrations versionadas (`001_initial_schema.sql`, `002_institution_wallets.sql`, `003_deployment_source.sql`), aplicadas pelo runner (`setup` no compose). Uma instituição opera várias carteiras (`institution_wallets`); cadastro e limite on-chain são por carteira (`contract_wallet_state`). A API lê todas e grava ofertas, eventos, liquidações, limites, histórico, cursor e intenções. `/ready` executa `SELECT 1` e responde 503 se o banco cair; em `production` o servidor não sobe sem `DATABASE_URL`. Quando o listener existir, ele passará a ser o escritor da projeção, sujeito a replay e correção de reorg.
+As dez tabelas de domínio e `schema_migrations` são criadas pelas migrations versionadas (`001_initial_schema.sql`, `002_institution_wallets.sql`, `003_deployment_source.sql`), aplicadas pelo runner (`setup` no Compose). Uma instituição opera várias carteiras (`institution_wallets`); cadastro e limite on-chain são por carteira (`contract_wallet_state`). A API lê essas tabelas; escritas HTTP só existem em development/test. `/ready` executa `SELECT 1` e responde 503 se o banco cair; em `production` o servidor exige `DATABASE_URL`. O worker, quando habilitado, escreve a projeção dos eventos da Sepolia.
 
 ### RPC provider
 
@@ -70,29 +70,29 @@ O listener usa um endpoint HTTP da Sepolia (`SEPOLIA_RPC_URL`), só para leitura
 
 ### Contratos (Solidity/Foundry)
 
-Contrato DvP, BRLt ERC-20 de liquidação e posição CDIP ERC-721, em repositório externo; nenhuma chamada ABI/RPC é feita neste backend.
+Contrato DvP, BRLt ERC-20 de liquidação e posição CDIP ERC-721 ficam no repositório Web3. O listener deste backend faz leituras ABI/RPC; não assina nem transmite transações. O ambiente público atual não executa o listener.
 
 ## Decisões
 
 ### O backend não assina transações
 
-`viem` é um candidato para leitura futura, não uma dependência instalada. O operador mantém a chave na própria carteira.
+`viem` é a dependência usada pelo listener para leitura. O operador mantém a chave na própria carteira.
 
 Alternativa descartada: backend com chave custodial (relayer). Seria mais fácil de demonstrar, mas colocaria o backend no caminho crítico da liquidação e enfraqueceria o argumento central do projeto — a operação acontece no contrato, sem intermediário confiável.
 
 Consequência: a chain é autoridade financeira; o backend será indexador e fonte de dados *off-chain* autorizada, não executor.
 
-### Cursor, idempotência e reorg: desenho para o listener
+### Cursor, idempotência e reorg
 
-Um consumidor de eventos precisa recuperar intervalos perdidos após paradas. Polling com cursor persistido permite repetir um intervalo e confirmar avanços somente após a projeção do lote; WebSocket sem cursor não resolve perda de eventos. Isso ainda não está implementado nem medido.
+O listener implementa polling com cursor persistido e confirma avanços somente após gravar o lote. Os testes de integração exercitam retomada, replay sem duplicação e rollback de lote com falha RPC; não medem a latência da Sepolia.
 
 Para cada `(chain_id, contract_address, tx_hash, log_index)`, a projeção só deve aplicar o evento se o log foi inserido; evento, limite derivado, oferta/liquidação e cursor precisam compartilhar uma transação. A chave primária em `chain_events` sustenta idempotência de *logs idênticos*, mas **não** resolve reorg por si só.
 
-Um reorg substitui logs que podem ter o mesmo número de bloco e outro hash. A implementação precisará guardar hashes suficientes para uma janela de verificação, detectar divergência, reverter projeções afetadas e reproduzir o ramo canônico antes de avançar o cursor. A migration inicial guarda só o hash do cursor, não essa janela nem o algoritmo. Executar instâncias concorrentes do listener exigirá coordenação adicional; a chave idempotente sozinha não basta.
+Um reorg pode substituir logs no mesmo número de bloco. O listener guarda o hash do cursor, verifica a canonicidade e para diante de divergência. Ainda faltam a janela de hashes e o reparo automático. Os passes concorrentes são serializados por advisory lock; a chave idempotente sozinha não resolve reorg.
 
 ## Orçamento de latência (RNF02: meta de 30 segundos)
 
-`tempo até confirmação da transação + intervalo de polling do listener + escrita + polling do cliente` deve caber na meta de 30 s **se** a chain produzir blocos, o RPC estiver disponível e a política de reorg permitir. Os tempos da Sepolia são variáveis; uma janela de confirmação/replay consome parte do orçamento. Não há listener ou cliente integrado nesta base, portanto **nenhum SLO de ponta a ponta foi medido**. Medir distribuição de latências e atraso do cursor é pré-requisito para afirmar RNF02.
+`tempo até confirmação da transação + intervalo de polling do listener + escrita + polling do cliente` precisa ser medido no fluxo integrado para avaliar a meta de 30 segundos. O listener usa 12 confirmações por padrão; o ambiente publicado não o executa. Nenhum SLO de ponta a ponta foi medido, e o smoke de deploy não comprova RNF02.
 
 ## Riscos conhecidos
 
@@ -100,9 +100,15 @@ Um reorg substitui logs que podem ter o mesmo número de bloco e outro hash. A i
 
 **Identidade não verificada.** Cabeçalho de carteira e endereços no body são autodeclarados. POSTs não são registrados em `production`; não exponha `development` como serviço financeiro.
 
-**Projeção congelada ou divergente.** Sem listener e sem proteção de reorg, o status não acompanha a chain. A leitura de `sync-status` é simulada; alerta operacional real requer conectar e medir cursor/bloco.
+**Projeção congelada ou divergente.** O ambiente público serve dados sintéticos sem listener; `sync-status` não comprova sincronização real. Ao ativar o worker, acompanhar atraso do cursor e falhas de reorg; o reparo automático continua pendente.
 
 **Limite em duas representações.** A chain decidirá o limite na execução; uma projeção atrasada pode sugerir aceite que será revertido. UI deve apresentar o erro e reconciliar estado.
+
+## Implantação de demonstração
+
+O proxy recebe HTTPS e encaminha as chamadas à porta interna 3000 da API. O PostgreSQL 17 tem armazenamento persistente e não publica porta externa. A aplicação usa banco e credenciais próprios; a rede interna é compartilhada com outros serviços da VPS.
+
+A API roda como usuário `node` e inicia com `setup-db.js` seguido de `server.js`. O seed `if-empty` preserva os dados em reinícios. O ambiente permite apenas leituras públicas de dados fictícios e não executa o listener. O [guia de deploy](deploy.md) reúne os endereços de acesso, testes e procedimentos de operação, além das pendências de backup, rate limit, CORS e monitoramento.
 
 ## Caminho para produção
 
