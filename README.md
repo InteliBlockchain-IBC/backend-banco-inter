@@ -32,6 +32,14 @@ Toda resposta **bem-sucedida** de `/api/*` traz `X-Data-Source` e `meta.source` 
 
 Em `development`/`test`, `/api/mock/offers` cria ofertas e `/api/mock/offers/:id/{accept,reject,cancel}` registra a transição (oferta, eventos, liquidação, débito do limite, histórico e cursor) na fonte de dados ativa, numa única transação. Nesse ambiente também existem intenções de assinatura sob `/api/offers` e envio de hash sob `/api/transaction-requests`. `X-Wallet-Address` é dado fornecido pelo cliente, **não autenticação**; uma intenção não liquida nada por si. As simulações só gravam no contrato sintético do seed: depois que o listener registra o contrato real, `/api/mock/*` responde 409 `simulation-unavailable`. Em `production` todos os `POST` são 404 e não aparecem no OpenAPI servido. Sem `NODE_ENV`, tanto `buildApp()` quanto o servidor usam **production** por segurança.
 
+### Ambiente público de demonstração
+
+- API: <https://banco-inter-api.212-38-89-33.sslip.io/api/offers>
+- Swagger: <https://banco-inter-api.212-38-89-33.sslip.io/docs/>
+- Health e prontidão: [`/health`](https://banco-inter-api.212-38-89-33.sslip.io/health) e [`/ready`](https://banco-inter-api.212-38-89-33.sslip.io/ready)
+
+A demonstração permite consultas sem login e usa PostgreSQL privado, com 30 ofertas fictícias. Para testar no Swagger, abra **Listar ofertas**, clique em **Try it out** e depois em **Execute**. O listener Sepolia está desligado e as escritas retornam `404`; os fluxos de simulação ficam no ambiente local. Instruções de acesso, configuração e recuperação estão no [guia de deploy](docs/deploy.md).
+
 ## Começando
 
 ### Com Docker Compose — API, banco e seed em um comando
@@ -80,9 +88,9 @@ docker compose down
 docker compose up --build -d
 ```
 
-O `--build` coloca as migrations novas na imagem e o `setup` aplica só as pendentes, sem apagar dados. O seed `if-empty` não regrava um banco que já tem dados; para ver a massa nova (por exemplo, a segunda carteira do Banco Alfa), recrie-a com `docker compose run --rm -e SEED_DEMO=reset setup`.
+O `--build` coloca as migrations novas na imagem e o `setup` aplica só as pendentes, sem apagar dados. O seed `if-empty` não regrava um banco que já tem dados. Somente em um ambiente local descartável, para substituir a massa sintética, use `docker compose run --rm -e SEED_DEMO=reset setup`; esse comando remove e recria os dados de demonstração.
 
-> **Já usava o compose da versão 0.3.0?** Aquele volume foi criado pelo `docker-entrypoint-initdb.d`, sem `schema_migrations`, e o `setup` falharia com "relation already exists". Rode `docker compose down -v` uma vez antes do novo `up`.
+> **Já usava o Compose da versão 0.3.0?** Aquele volume foi criado pelo `docker-entrypoint-initdb.d`, sem `schema_migrations`, e o `setup` pode falhar com "relation already exists". Preserve o volume e faça backup/restore isolado antes de planejar a migração; não forje o ledger. `docker compose down -v` só é aceitável se todos os dados desse ambiente forem descartáveis e a exclusão for intencional. Não use esse procedimento na VPS.
 
 ### Com Node.js instalado no computador
 
@@ -276,8 +284,8 @@ O workflow em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executa for
 | --- | --- |
 | RF04/05 | Consultas e histórico persistidos no PostgreSQL (dados sintéticos); sem indexação on-chain |
 | RF06 | Cancelamento **simulado** e persistido; o contrato real não é chamado |
-| RNF01 | Fixtures rotuladas Sepolia; sem conexão RPC |
-| RNF02 | Meta de latência pendente de listener, integração e medição |
+| RNF01 | Configuração restrita à Sepolia; demonstração pública usa seed fictício, sem listener ativo |
+| RNF02 | Listener implementado; integração ponta a ponta e medição de latência pendentes |
 | RNF03 | Trilha persistida (timestamp, partes, taxa, hash, eventos); ainda sintética, não observada on-chain |
 | RNF04 | Código e licença MIT disponíveis no repositório |
 
@@ -285,7 +293,7 @@ RF01–RF03 dependem do trabalho de contratos e da validação entre equipes; n�
 
 ## Documentação
 - [`docs/arquitetura.md`](docs/arquitetura.md) — arquitetura atual e alvo, decisões e trade-offs.
-- [`docs/deploy.md`](docs/deploy.md) — plano de deploy no Render: provedor, variáveis de ambiente, passo a passo e checklist do demo day ([`render.yaml`](render.yaml)).
+- [`docs/deploy.md`](docs/deploy.md) — acesso à demonstração, testes pelo Swagger, configuração, backup e recuperação.
 - [`docs/api.md`](docs/api.md) — contrato HTTP, fontes de dados e exemplos.
 - [`docs/openapi.json`](docs/openapi.json) e [`docs/collection/`](docs/collection/) — artefatos de `npm run docs:export` para `development`.
 - [`docs/modelagem-banco.md`](docs/modelagem-banco.md) — modelo ER e histórico das migrations; esquema em [`migrations/`](migrations/).
