@@ -1,118 +1,128 @@
-# Plano de deploy
+# Deploy e operação
 
-Como publicar o backend da PoC (API + PostgreSQL) numa URL pública com healthcheck, para a entrega de **17/10** e o demo day de **21/10**. O ambiente é de demonstração em testnet: dados sintéticos, sem ativos reais.
+## Acesso e testes
 
-## Resumo das decisões
+- Swagger: <https://banco-inter-api.212-38-89-33.sslip.io/docs/>
+- Ofertas: <https://banco-inter-api.212-38-89-33.sslip.io/api/offers>
+- Saúde do processo: <https://banco-inter-api.212-38-89-33.sslip.io/health>
+- Prontidão do banco: <https://banco-inter-api.212-38-89-33.sslip.io/ready>
+- OpenAPI: <https://banco-inter-api.212-38-89-33.sslip.io/openapi.json>
 
-| Decisão | Escolha | Motivo |
-| --- | --- | --- |
-| Provedor | **Render** (API e banco no mesmo painel) | Deploy direto do GitHub a partir do `Dockerfile` existente, Postgres gerenciado, plano gratuito e configuração versionada em [`render.yaml`](../render.yaml). |
-| API | Web Service, runtime Docker, plano **free** | Mesma imagem do `docker compose`: o que roda local é o que vai ao ar. |
-| Banco | Render Postgres 17, plano **free** | Mesma versão do compose. Conexão pela rede interna do Render. |
-| Região | `virginia` | O Render não tem região na América do Sul; Virginia (leste dos EUA) é a mais próxima do Brasil. API e banco precisam estar na mesma região. |
-| Migrations | No comando de start (`setup-db.js` antes do servidor) | O plano free não executa *pre-deploy command*; o `setup-db` é idempotente. |
-| Ambiente | `NODE_ENV=production` | Só leituras (`GET`) ficam públicas; as rotas `/api/mock` e de intenção, sem autenticação, não são expostas na internet. |
-| Branch | `main`, com auto-deploy | Cada merge na `main` publica. O CI precisa passar antes do merge. |
+A demonstração permite consultas públicas, sem login. O PostgreSQL contém 30 ofertas, 5 carteiras e 8 operações de quatro instituições fictícias. O listener está desligado: os endereços e hashes do seed não comprovam transações na Sepolia.
 
-## Limites do plano gratuito e como lidar
+### Pelo navegador
 
-Condições do Render consultadas em 06/10/2026 (fontes no fim do documento). Confirme antes de criar, porque mudam.
+1. Abra o Swagger e expanda **GET /api/offers**, identificado como **Listar ofertas**.
+2. Clique em **Try it out**, preencha `limit` com `2` e clique em **Execute**.
+3. Confira o status `200`, dois itens em `data`, `meta.total = 30` e `meta.source = postgres`.
+4. Copie um `id` retornado e use-o em **GET /api/offers/{id}** e **GET /api/offers/{id}/events**.
 
-| Limite | Impacto | Como lidar |
-| --- | --- | --- |
-| Postgres free **expira 30 dias após a criação** (mais 14 dias de carência para virar pago); só 1 banco free por workspace; 1 GB | Criado em 06–10/10, vale até ~05–09/11: cobre 17/10 e 21/10. | Não criar antes de 06/10. Se o ambiente precisar durar além de novembro, migrar para o plano pago ou para o Neon (abaixo). |
-| API free **hiberna após 15 min sem tráfego**; acordar leva ~1 min | A primeira requisição depois de um intervalo demora. No demo day isso aparece como "travou". | Acessar `/health` uns 5 minutos antes de apresentar e manter uma aba aberta. Alternativa segura: plano pago da API (instância Starter) só na semana do demo; conferir o valor em [render.com/pricing](https://render.com/pricing). |
-| 750 horas de instância grátis por mês, por workspace | Suficiente para uma API. | Não criar outros serviços free no mesmo workspace. |
-| Sem *pre-deploy command* | Migrations rodam a cada start. | Já tratado: `setup-db` só aplica o que falta, sob advisory lock. |
+O Swagger faz as chamadas no próprio endereço da API. Não é necessário alterar o DNS do navegador nem aceitar exceções de certificado. A raiz `/` não tem página inicial; use os links acima.
 
-**Alternativa sem expiração:** banco no [Neon](https://neon.com/pricing) (plano free permanente, 1 GB por projeto, hiberna após 5 min) e API no Render. Muda só o `DATABASE_URL`, que passa a ser uma variável manual com `?sslmode=require`.
+O ambiente público usa `NODE_ENV=production`: as rotas de escrita retornam `404` e não aparecem no Swagger. Para exercitar criação, aceite, rejeição e cancelamento simulados, use o ambiente local descrito no [README](../README.md#começando). A coleção Postman do repositório inclui essas escritas locais; não espere que elas funcionem na demonstração pública.
 
-## Variáveis de ambiente
+### Pelo terminal
 
-| Variável | Valor em produção | Quem define | Observação |
-| --- | --- | --- | --- |
-| `DATABASE_URL` | URL interna do banco | Render (`fromDatabase` no blueprint) | **Obrigatória** em production: sem ela a API não sobe. Nunca commitar. |
-| `NODE_ENV` | `production` | blueprint | Desliga `/api/mock` e os POST de intenção. |
-| `HOST` | `0.0.0.0` | blueprint | O padrão (`127.0.0.1`) não aceita conexões de fora do container. |
-| `PORT` | definida pelo Render | Render | `src/config.ts` já lê `PORT`. |
-| `SEED_DEMO` | `if-empty` | blueprint | Grava a massa de demonstração só no primeiro start. `reset` recria a cada start: **não deixar ligado**. |
+```bash
+BASE=https://banco-inter-api.212-38-89-33.sslip.io
+curl --fail-with-body --silent --show-error --max-time 30 "$BASE/health"
+curl --fail-with-body --silent --show-error --max-time 30 "$BASE/ready"
+curl --fail-with-body --silent --show-error --max-time 30 -D - "$BASE/api/offers?limit=2"
+curl --fail-with-body --silent --show-error --max-time 30 "$BASE/openapi.json"
+```
 
-Listener (worker separado, `node dist/scripts/watch-chain.js`): `SEPOLIA_RPC_URL` (secreta), `CREDIT_INTERBANK_OFFER_ADDRESS`, `BRL_TOKEN_ADDRESS`, `CDI_POSITION_TOKEN_ADDRESS`, `CREDIT_INTERBANK_OFFER_START_BLOCK`, `CHAIN_SYNC_CONFIRMATIONS` e `CHAIN_SYNC_INTERVAL_MS`, além da mesma `DATABASE_URL`. O plano free do Render não oferece background worker; no compose local ele roda no perfil `listener`. Futuro: a origem do frontend quando a API ganhar CORS.
-
-## Passo a passo
-
-### 1. Pré-requisitos
-
-- O PR desta entrega mergeado na `main`, com CI verde.
-- Conta no [Render](https://render.com) com acesso à organização `InteliBlockchain-IBC` no GitHub (o Render pede autorização para ler o repositório).
-- `docker compose up --build` funcionando localmente: é a mesma imagem que vai ao ar.
-
-### 2. Criar a API e o banco pelo blueprint
-
-1. Render Dashboard → **New** → **Blueprint**.
-2. Selecione o repositório `backend-banco-inter`. O Render lê o [`render.yaml`](../render.yaml) e mostra o serviço `backend-banco-inter` e o banco `banco-inter-db`.
-3. Confirme em **Apply**. O Render cria o banco, constrói a imagem pelo `Dockerfile` e sobe a API com `DATABASE_URL` já ligada ao banco.
-4. No primeiro start, o log deve mostrar:
-   ```
-   Migrações aplicadas: 001_initial_schema.sql, 002_institution_wallets.sql
-   Seed de demonstração gravado (30 ofertas, modo if-empty).
-   ... "dataSource":"postgres" ... fonte de dados configurada
-   ... Server listening at http://0.0.0.0:10000
-   ```
-
-Sem blueprint, dá para criar à mão: **New → Postgres** (free, Virginia, versão 17) e depois **New → Web Service** (Docker, free, Virginia), com as variáveis da tabela acima, *Docker Command* igual ao `dockerCommand` do `render.yaml` e *Health Check Path* `/health`.
-
-### 3. Verificar
-
-Com a URL pública (`https://backend-banco-inter.onrender.com` ou a que o Render atribuir):
-
-| Verificação | Esperado |
+| Verificação | Resultado esperado |
 | --- | --- |
-| `GET /health` | `200 {"status":"ok"}` |
-| `GET /ready` | `200`, com `{"name":"postgres","status":"up"}` em `dependencies` |
-| `GET /api/offers` | `200`, cabeçalho `X-Data-Source: postgres`, `meta.total` = 30 |
-| `GET /api/credit-limits` | 5 carteiras, duas do Banco Alfa |
-| `POST /api/mock/offers` | `404` (production não expõe simulação) |
-| `GET /docs` | Swagger UI |
+| `/health` | 200, `{"status":"ok"}` |
+| `/ready` | 200, dependência `postgres` com status `up` |
+| `/api/offers` | 200, `meta.total = 30`, `X-Data-Source: postgres` |
+| Detalhe e eventos de uma oferta da listagem | 200 |
+| `/api/operations`, `/api/credit-limits` | 200, com operações e limites fictícios |
+| `/api/deployment`, `/api/sync-status` | 200, com configuração e cursor sintéticos |
+| `/docs/`, `/openapi.json` | 200; contrato público somente de leitura |
+| POST `/api/offers` e `/api/mock/offers`, com JSON `{}` | 404 |
+| Consulta inválida, como `/api/offers?limit=101` | 400, `application/problem+json` |
+| `/.env`, `/.git/config` e `/src/config.ts` | 404, sem conteúdo dos arquivos |
 
-Registre a URL no README principal e no board do projeto.
+`/health` testa o processo. `/ready` executa `SELECT 1`; não verifica migrations, conteúdo do seed ou sincronização on-chain. Por isso, a conferência após uma mudança também deve consultar os dados e executar uma chamada no Swagger.
 
-### 4. Atualizações
+## Configuração do serviço
 
-- **Código:** merge na `main` → o Render reconstrói e publica sozinho. Se o healthcheck falhar, a versão anterior continua no ar.
-- **Migration nova:** só criar o arquivo `migrations/NNN_nome.sql`. O próximo start aplica.
-- **Renovar a massa de demonstração** (os horários são relativos ao seed: há ofertas abertas com validade de 1 hora, 4 horas e, no cenário da carteira Delta revogada, 10 dias): copie a *External Database URL* do banco no painel do Render e rode localmente:
-  ```bash
-  DATABASE_URL="<external url>?sslmode=require" npm run db:seed -- --reset
-  ```
-  No PowerShell: `$env:DATABASE_URL="<external url>?sslmode=require"; npm run db:seed -- --reset`. Não precisa reiniciar a API.
+A API roda em Node.js 24 como usuário sem privilégios. O PostgreSQL 17 usa armazenamento persistente. O proxy recebe HTTPS e encaminha as chamadas à porta interna `3000`; o banco atende apenas na rede interna, na porta `5432`.
 
-  A conexão externa do Render exige TLS. Se o driver recusar o certificado, troque por `?sslmode=no-verify` (aceitável aqui porque os dados são sintéticos; não use com dados reais).
+No Easypanel, mantenha o PostgreSQL com **Exposed Port = 0**. Não habilite acesso público ao banco ou a um gerenciador de banco. A API também não precisa de porta exposta diretamente no host.
 
-### 5. Reverter
+Configure as variáveis somente no ambiente privado do serviço:
 
-- **Código:** no painel do serviço, **Events** → deploy anterior → **Rollback**.
-- **Dados:** como tudo é sintético, o caminho é recriar a massa com o seed `--reset` (passo 4). O plano free não tem backup automático; não guardar nada que não possa ser recriado.
+```dotenv
+NODE_ENV=production
+HOST=0.0.0.0
+PORT=3000
+SEED_DEMO=if-empty
+DATABASE_URL=<URL privada do banco>
+```
 
-## Checklist do demo day (21/10)
+Substitua o placeholder pela conexão interna, com senha exclusiva. Deixe **Create env file** desmarcado e não copie credenciais para documentos, imagens ou logs.
 
-- [ ] Até 20/10: banco ainda dentro dos 30 dias (data de criação no painel).
-- [ ] No dia: seed `--reset` cerca de 30 minutos antes, para haver ofertas abertas.
-- [ ] 5 minutos antes: abrir `/ready` para acordar a API e confirmar o banco.
-- [ ] Manter `/docs` aberto numa aba como plano B para mostrar a API.
-- [ ] Ter o `docker compose up` rodando num notebook como contingência se o Render cair.
+Comando de inicialização:
 
-## Riscos e limites
+```sh
+sh -c "node dist/scripts/setup-db.js && exec node dist/src/server.js"
+```
 
-- **Hibernação e expiração** do plano free (tabela acima). Eliminar os dois exige instância paga da API e banco pago; valores em [render.com/pricing](https://render.com/pricing), a confirmar com quem for pagar antes de contratar.
-- **Dados sintéticos em URL pública.** Hashes e endereços não existem na Sepolia; a API marca a origem (`X-Data-Source`). Não divulgar a URL como se mostrasse operações reais.
-- **Sem autenticação.** Em production as leituras são públicas; nenhum dado real deve ir para este banco.
-- **CORS ainda não configurado.** Quando o frontend chamar a API pelo navegador (Semana 4), a API precisa liberar a origem do frontend. Pendência registrada para a integração.
-- **Latência:** a região Virginia acrescenta a ida e volta Brasil–EUA a cada chamada. Aceitável para a PoC; não usar estas medidas como evidência do RNF02.
+O setup aplica migrations pendentes e o seed antes de iniciar o servidor. Se falhar, a API não inicia. `if-empty` preserva os dados nos próximos starts; não use `SEED_DEMO=reset` no serviço remoto.
 
-## Fontes
+Em **Domains**, mantenha o endereço indicado neste guia, HTTPS habilitado e destino HTTP interno na porta **3000**, caminho `/`. Após mudar o domínio, espere a emissão do certificado e valide o acesso sem `curl -k`, DNS forçado ou exceções no navegador. O endereço atual depende do serviço DNS `sslip.io`; uma futura mudança de domínio precisa da mesma verificação.
 
-- [Render — Deploy for Free](https://render.com/docs/free) (hibernação de 15 min, ~1 min para acordar, 750 h/mês, Postgres free expira em 30 dias + 14 de carência, 1 GB, 1 banco por workspace)
-- [Render — Deploys](https://render.com/docs/deploys) ("The pre-deploy command is available for paid web services…")
-- [Render — Blueprint YAML Reference](https://render.com/docs/blueprint-spec) (campos do `render.yaml` e regiões)
-- [Neon — Pricing](https://neon.com/pricing) (plano free permanente, 1 GB por projeto, hiberna após 5 min)
+| Serviço | Reserva de memória | Limite de memória | Limite de CPU |
+| --- | --- | --- | --- |
+| API, uma réplica | 128 MB | 512 MB | 0,5 core |
+| PostgreSQL | 128 MB | 512 MB | 1 core |
+
+## Atualização e reinício
+
+1. Execute os testes, a cobertura e as verificações de qualidade. Antes de alterar dados ou migrations, tenha um backup externo com restauração comprovada.
+2. Confira espaço em disco e memória. A VPS foi encontrada com 90,5% do disco ocupado; faça uma nova leitura antes de cada atualização. Não remova volumes nem recursos de outros serviços.
+3. Confira as variáveis, o comando de inicialização e a compatibilidade das migrations antes de iniciar a atualização. O envio pelo painel pode disparar a atualização imediatamente.
+4. Acompanhe os logs de setup e inicialização. Não imprima a conexão do banco ou outras credenciais.
+5. Repita as consultas da seção de testes, incluindo o Swagger em uma sessão nova do navegador.
+6. Para verificar persistência, guarde as respostas de ofertas, operações e limites, reinicie somente a API e compare as respostas após `/ready` voltar a `200`.
+
+A opção **Zero Downtime** está habilitada. A instância anterior pode continuar atendendo enquanto a nova executa o setup; as migrations precisam ser compatíveis com ambas. Sem healthcheck de container, essa opção não comprova ausência de indisponibilidade.
+
+O `compose.yaml` é voltado ao desenvolvimento local. Seu padrão habilita escritas sem autenticação; não o exponha diretamente na internet.
+
+## Backup e restauração
+
+Não há backup externo ou agendamento configurado. O armazenamento persistente sobrevive a um reinício, mas não à perda da VPS. Resolva essa pendência antes de passar a depender dos dados ou executar migrations que os alterem.
+
+1. Defina um destino externo privado e um caminho exclusivo para o banco em **Settings → Storage Providers**. A retenção não deve alcançar arquivos de outros serviços.
+2. Confira a disponibilidade de agendamento na licença. Em **Backups**, configure destino e retenção, execute **Manual Run** e verifique o log e o arquivo no destino. Se não houver agendamento disponível, estabeleça um procedimento externo; não presuma que exista uma rotina automática.
+3. Restaure uma cópia em outro PostgreSQL 17, vazio e isolado. A restauração substitui dados: confirme o destino antes de executá-la e nunca ensaie no banco usado pela API pública.
+4. Compare tabelas, contagens, conteúdo e `schema_migrations`. Execute uma aplicação compatível com o schema restaurado e repita as consultas de verificação.
+5. Registre o arquivo utilizado, o resultado e o responsável em um registro operacional privado.
+
+O ensaio local de `pg_dump` em formato custom e `pg_restore --exit-on-error` recuperou 30 ofertas, 5 carteiras e 3 migrations. Ainda falta validar o destino externo e a restauração pelo painel.
+
+## Recuperação de falhas
+
+- Para reverter a aplicação, preserve o banco e use uma versão compatível com todas as migrations já aplicadas, inclusive nomes e checksums. Repita os testes de acesso. A reversão remota ainda não foi ensaiada.
+- Se uma migration falhar, não altere arquivos já aplicados nem edite o ledger para forçar a subida. O runner faz uma transação por arquivo; os arquivos anteriores permanecem aplicados. Prefira uma correção aditiva revisada. Restaurar o banco exige backup verificado e autorização para substituir os dados.
+- Se o banco ficar indisponível, `/health` pode continuar respondendo enquanto `/ready` falha. Confira disco, logs e conexão interna, sem expor o PostgreSQL.
+- Se o setup parar, verifique o banco e os advisory locks. Os clientes de migration e seed não têm deadline próprio; não dispare várias inicializações nem encerre sessões de outros serviços.
+- Para uma demonstração local independente, use `docker compose up --build -d`. Esse banco não recebe automaticamente os dados da VPS.
+
+## Limites operacionais
+
+As leituras são públicas e não há autenticação ou rate limit no aplicativo. Mantenha apenas dados fictícios e as escritas desativadas. A revisão de respostas e caminhos sensíveis não substitui uma auditoria completa da VPS.
+
+CORS não está configurado. O Swagger funciona no endereço da própria API; um frontend em outro domínio precisa de configuração explícita e teste de integração, ou de um proxy que atenda ambos no mesmo endereço.
+
+Backup externo, alertas e acompanhamento do espaço em disco continuam pendentes. Não há monitoramento contínuo ou prova de capacidade sob carga. O listener desligado também impede usar esta demonstração como evidência de liquidação Sepolia ou da meta de latência RNF02.
+
+## Referências
+
+- [Easypanel: App service](https://easypanel.io/docs/services/app)
+- [Easypanel: Postgres service](https://easypanel.io/docs/services/postgres)
+- [Easypanel: database backups](https://easypanel.io/docs/backups/database)
+- [Dockerfile](../Dockerfile), [setup do banco](../scripts/setup-db.ts), [migrations](../src/database/migrate.ts), [seed](../src/database/seed.ts) e [healthchecks](../src/http/routes/health.ts).
