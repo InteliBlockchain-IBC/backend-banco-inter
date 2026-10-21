@@ -116,7 +116,7 @@ O ensaio local de `pg_dump` em formato custom e `pg_restore --exit-on-error` rec
 
 As leituras são públicas e não há autenticação ou rate limit no aplicativo. Mantenha apenas dados fictícios e as escritas desativadas. A revisão de respostas e caminhos sensíveis não substitui uma auditoria completa da VPS.
 
-CORS não está configurado. O Swagger funciona no endereço da própria API; um frontend em outro domínio precisa de configuração explícita e teste de integração, ou de um proxy que atenda ambos no mesmo endereço.
+CORS está configurado em `src/app.ts` com `@fastify/cors` para o frontend `https://frontend-banco-inter.onrender.com`. O Swagger continua funcionando no endereço da própria API. Para usar outro domínio de frontend, ajuste a origem permitida no backend. Essa configuração libera a leitura das respostas pelo navegador; erros 500 de `/api/deployment` ou `/api/credit-limits` devem ser investigados nos logs do backend pelo `correlationId` e pelo campo `code`.
 
 Backup externo, alertas e acompanhamento do espaço em disco continuam pendentes. Não há monitoramento contínuo ou prova de capacidade sob carga. O listener desligado também impede usar esta demonstração como evidência de liquidação Sepolia ou da meta de latência RNF02.
 

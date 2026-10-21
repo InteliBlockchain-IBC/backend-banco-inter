@@ -1,3 +1,4 @@
+import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import Fastify, {
@@ -201,6 +202,10 @@ export async function buildApp(
             },
           },
     requestTimeout: 15_000,
+  });
+
+  await app.register(cors, {
+    origin: "https://frontend-banco-inter.onrender.com",
   });
 
   app.addHook("onClose", async () => {
