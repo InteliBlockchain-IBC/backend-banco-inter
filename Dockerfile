@@ -27,4 +27,4 @@ COPY migrations ./migrations
 
 USER node
 EXPOSE 3000
-CMD ["node", "dist/src/server.js"]
+CMD ["sh", "-c", "node dist/scripts/setup-db.js && exec node dist/src/server.js"]
